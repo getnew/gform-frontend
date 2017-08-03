@@ -16,12 +16,12 @@
 
 package uk.gov.hmrc.gform.gformbackend.model
 
-import play.api.libs.json.{Json, OFormat}
-import uk.gov.hmrc.gform.models.UserId
+import play.api.libs.json.{ Json, OFormat }
 
-case class FormData(userId: UserId, formTypeId: FormTypeId, characterSet: String, fields: Seq[FormField], version: Version = Version("0.3.0"))
+case class UserData(formData: FormData, repeatingGroupStructure: Option[RepeatingGroupStructure])
 
-object FormData {
+object UserData {
 
-  implicit val format: OFormat[FormData] = Json.format[FormData]
+  implicit val format: OFormat[UserData] = Json.format[UserData]
+
 }

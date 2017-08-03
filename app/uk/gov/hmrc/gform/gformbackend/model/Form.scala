@@ -22,21 +22,23 @@ import play.api.libs.json._
 case class Form(
   _id: FormId,
   formData: FormData,
-  envelopeId: EnvelopeId
+  envelopeId: EnvelopeId,
+  repeatingGroupStructure: Option[RepeatingGroupStructure]
 )
 
 object Form {
-
   private val reads: Reads[Form] = (
     (FormId.format: Reads[FormId]) and
     FormData.format and
-    EnvelopeId.format
+    EnvelopeId.format and
+    Reads.optionWithNull(RepeatingGroupStructure.format)
   )(Form.apply _)
 
   private val writes: OWrites[Form] = OWrites[Form](form =>
     FormId.format.writes(form._id) ++
       FormData.format.writes(form.formData) ++
-      Json.obj("envelopeId" -> EnvelopeId.format.writes(form.envelopeId)))
+      Json.obj("envelopeId" -> EnvelopeId.format.writes(form.envelopeId)) ++
+      form.repeatingGroupStructure.fold(Json.obj())(RepeatingGroupStructure.format.writes))
 
   implicit val format: OFormat[Form] = OFormat[Form](reads, writes)
 

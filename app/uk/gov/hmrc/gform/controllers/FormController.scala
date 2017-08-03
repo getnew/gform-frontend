@@ -112,8 +112,7 @@ class FormController @Inject() (
     for {// format: OFF
       form           <- gformConnector.getForm(formId)
       fieldData       = getFormData(form)
-      keyStore        <- gformConnector.getKeyStore(formId)
-      _               <- repeatService.loadData(keyStore)
+      _               <- repeatService.loadData(form.repeatingGroupStructure)
       formTemplateF   = gformConnector.getFormTemplate(form.formData.formTypeId)
       envelopeF       = fileUploadService.getEnvelope(form.envelopeId)
       formTemplate   <- formTemplateF
@@ -235,8 +234,8 @@ class FormController @Inject() (
           //TODO figure out if we should save the structure constantly or should we figure out when they leave the form another way other than the two buttons.
           for {
             keystore <- repeatService.getData()
-            _ <- gformConnector.saveKeyStore(formId, keystore)
-            result <- SaveService.updateFormData(formId, formData, false)
+            userData = UserData(formData, keystore)
+            result <- SaveService.updateFormData(formId, userData, false)
             outCome <- outCome(result)
           } yield outCome
       } //End processSaveAndContinue
@@ -255,9 +254,9 @@ class FormController @Inject() (
 
         for {
           keystore <- repeatService.getData()
-          _ <- gformConnector.saveKeyStore(formId, keystore)
           formData <- formData
-          result <- SaveService.updateFormData(formId, formData, tolerant = true).map(response => Ok(uk.gov.hmrc.gform.views.html.hardcoded.pages.save_acknowledgement(formId, formData.formTypeId)))
+          userData = UserData(formData, keystore)
+          result <- SaveService.updateFormData(formId, userData, tolerant = true).map(response => Ok(uk.gov.hmrc.gform.views.html.hardcoded.pages.save_acknowledgement(formId, formData.formTypeId)))
         } yield result
       }
 

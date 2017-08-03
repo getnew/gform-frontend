@@ -21,7 +21,7 @@ import javax.inject.{ Inject, Singleton }
 import play.api.Logger
 import play.api.libs.json.{ JsValue, Json }
 import uk.gov.hmrc.gform.connectors.SessionCacheConnector
-import uk.gov.hmrc.gform.gformbackend.model.FormTemplate
+import uk.gov.hmrc.gform.gformbackend.model.{ FormTemplate, RepeatingGroupStructure }
 import uk.gov.hmrc.gform.models.components.{ FieldId, FieldValue, Group }
 import uk.gov.hmrc.http.cache.client.CacheMap
 import uk.gov.hmrc.play.http.HeaderCarrier
@@ -69,14 +69,15 @@ class RepeatingComponentService @Inject() (val sessionCache: SessionCacheConnect
     } yield newData
   }
 
-  def getData()(implicit hc: HeaderCarrier) = {
-    sessionCache.fetch().map(_.fold[Map[String, JsValue]](Map.empty[String, JsValue])(_.data))
-  }
+  def getData()(implicit hc: HeaderCarrier): Future[Option[RepeatingGroupStructure]] =
+    sessionCache.fetch().map(
+      _.fold[Option[RepeatingGroupStructure]](None)(x => Some(RepeatingGroupStructure(x.data)))
+    )
 
-  def loadData(data: Option[Map[String, JsValue]])(implicit hc: HeaderCarrier): Future[Unit] = {
+  def loadData(data: Option[RepeatingGroupStructure])(implicit hc: HeaderCarrier): Future[Unit] = {
     data.fold(Future.successful(()))(y =>
       Future.successful(
-        y.foreach(x =>
+        y.structure.foreach(x =>
           x._2.asOpt[List[List[FieldValue]]] match {
             case Some(z) =>
               Logger.debug("RELOADTHING" + Json.prettyPrint(Json.toJson(z)))
