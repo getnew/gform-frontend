@@ -19,13 +19,29 @@ package uk.gov.hmrc.gform.gformbackend.model
 import play.api.libs.json._
 import uk.gov.hmrc.gform.models.components.FieldValue
 
+import scala.util.Try
+
 case class RepeatingGroupStructure(structure: Map[String, JsValue])
 
 object RepeatingGroupStructure {
 
   implicit val format: OFormat[RepeatingGroupStructure] = Json.format[RepeatingGroupStructure]
 
-  implicit val optionFormat: OFormat[Option[RepeatingGroupStructure]] = Json.format[Option[RepeatingGroupStructure]]
+  implicit val optionFormat: OFormat[Option[RepeatingGroupStructure]] = new OFormat[Option[RepeatingGroupStructure]] {
+    override def writes(o: Option[RepeatingGroupStructure]): JsObject = {
+      o match {
+        case Some(x) => Json.obj("structure" -> Json.toJson(x.structure))
+        case None => Json.obj()
+      }
+    }
 
+    override def reads(json: JsValue) = {
+      json.\("structure").asOpt[Map[String, JsValue]] match {
+        case Some(x) => JsSuccess(Some(RepeatingGroupStructure(x)))
+        case None => JsSuccess(None)
+      }
+    }
+  }
 
+  optionFormat.writes(Some(RepeatingGroupStructure(Map.empty[String, JsValue])))
 }

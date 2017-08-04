@@ -31,14 +31,14 @@ object Form {
     (FormId.format: Reads[FormId]) and
     FormData.format and
     EnvelopeId.format and
-    Reads.optionWithNull(RepeatingGroupStructure.format)
+    RepeatingGroupStructure.optionFormat
   )(Form.apply _)
 
   private val writes: OWrites[Form] = OWrites[Form](form =>
     FormId.format.writes(form._id) ++
       FormData.format.writes(form.formData) ++
       Json.obj("envelopeId" -> EnvelopeId.format.writes(form.envelopeId)) ++
-      form.repeatingGroupStructure.fold(Json.obj())(RepeatingGroupStructure.format.writes))
+      RepeatingGroupStructure.optionFormat.writes(form.repeatingGroupStructure))
 
   implicit val format: OFormat[Form] = OFormat[Form](reads, writes)
 
