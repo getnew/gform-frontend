@@ -26,18 +26,18 @@ import uk.gov.hmrc.gform.auth.models.Retrievals
 import uk.gov.hmrc.gform.config.ConfigModule
 import uk.gov.hmrc.gform.fileupload.Envelope
 import uk.gov.hmrc.gform.gform.{ PrepopService, SectionRenderingService }
-import uk.gov.hmrc.gform.keystore.RepeatingComponentService
-import uk.gov.hmrc.gform.sharedmodel.ExampleData
+import uk.gov.hmrc.gform.keystore.RepeatingService.RepeatingStructure
+import uk.gov.hmrc.gform.keystore.{ RepeatProxy, RepeatingComponentService }
+import uk.gov.hmrc.gform.sharedmodel.{ ExampleData, Shape }
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
 import uk.gov.hmrc.gform.wshttp.WSHttpModule
 import uk.gov.hmrc.http.cache.client.CacheMap
 import uk.gov.hmrc.play.http.HeaderCarrier
 
 import scala.collection.JavaConverters
-import scala.collection.immutable.List
 import scala.concurrent.{ ExecutionContext, Future }
 
-class SectionRenderingServiceSpec extends SpecWithFakeApp {
+class SectionRenderingServiceSpec extends SpecWithFakeApp with ExampleData {
 
   implicit val request = {
     val fakeRequest = FakeRequest()
@@ -51,27 +51,28 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
       Future.successful("")
   }
 
-  val mockRepeatService = new RepeatingComponentService(null, null) {
+  val mockRepeatService = new RepeatProxy(null, true) {
 
     override def getAllSections(formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[List[Section]] = {
       Future.successful(allSections)
     }
 
-    override def getAllRepeatingGroups(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[CacheMap] =
+    override def getAllRepeatingGroups(shape: Shape, formTemplate: FormTemplate)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[CacheMap] =
       Future.successful(CacheMap("EMPTY", Map.empty[String, JsValue]))
 
-    override def atomicFields(section: BaseSection)(implicit hc: HeaderCarrier): List[FormComponent] = {
+    override def atomicFields(section: BaseSection, shape: Shape, formTemplate: FormTemplate)(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
       section.fields
     }
 
-    override def getRepeatingGroupsForRendering(topFieldValue: FormComponent, groupField: Group)(implicit hc: HeaderCarrier, ec: ExecutionContext) = {
-      Future.successful((List(groupField.fields), false))
+    override def getRepeatingGroupsForRendering(formComponent: FormComponent, group: Group, formTemplate: FormTemplate, shape: Shape)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[(RepeatingStructure, Boolean)] = {
+      Future.successful((List(group.fields), false))
     }
   }
 
   val testService = new SectionRenderingService(mockRepeatService, mockPrepopService, frontendAppConfig)
 
   "SectionRenderingService" should "generate first page" in {
+    import scala.List
     val generatedHtml = testService
       .renderSection(
         form,
@@ -86,6 +87,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
         0,
         Nil,
         retrievals,
+        Shape(Map(), Map()),
         None
       ).futureValue
 
@@ -113,6 +115,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
         0,
         Nil,
         retrievals,
+        Shape(Map(), Map()),
         None
       ).futureValue
 
@@ -203,6 +206,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
         0,
         Nil,
         retrievals,
+        Shape(Map(), Map()),
         None
       ).futureValue
 
@@ -255,6 +259,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
         0,
         Nil,
         retrievals,
+        Shape(Map(), Map()),
         None
       ).futureValue
 
@@ -269,21 +274,21 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
 
   it should "hide add-group button when limit has been reached (repeating groups)" in new ExampleData {
 
-    val mock2RepeatService = new RepeatingComponentService(null, null) {
+    val mock2RepeatService = new RepeatProxy(null, true) {
 
       override def getAllSections(formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[List[Section]] = {
         Future.successful(allSections)
       }
 
-      override def getAllRepeatingGroups(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[CacheMap] =
+      override def getAllRepeatingGroups(shape: Shape, formTemplate: FormTemplate)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[CacheMap] =
         Future.successful(CacheMap("EMPTY", Map.empty[String, JsValue]))
 
-      override def atomicFields(section: BaseSection)(implicit hc: HeaderCarrier): List[FormComponent] = {
+      override def atomicFields(section: BaseSection, shape: Shape, formTemplate: FormTemplate)(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
         section.fields
       }
 
-      override def getRepeatingGroupsForRendering(topFieldValue: FormComponent, groupField: Group)(implicit hc: HeaderCarrier, ec: ExecutionContext) = {
-        Future.successful((List(groupField.fields, groupField.fields), true))
+      override def getRepeatingGroupsForRendering(formComponent: FormComponent, group: Group, formTemplate: FormTemplate, shape: Shape)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[(RepeatingStructure, Boolean)] = {
+        Future.successful((List(group.fields, group.fields), true))
       }
     }
 
@@ -316,6 +321,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
         0,
         Nil,
         retrievals,
+        Shape(Map(), Map()),
         None
       ).futureValue
 
@@ -329,6 +335,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
   }
 
   it should "generate declaration page" in {
+    import scala.List
     val generatedHtml = testService
       .renderDeclarationSection(
         form,

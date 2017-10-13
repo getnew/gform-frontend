@@ -19,7 +19,10 @@ package uk.gov.hmrc.gform.keystore
 import uk.gov.hmrc.gform.config.ConfigModule
 import uk.gov.hmrc.gform.wshttp.WSHttpModule
 
-class KeystoreModule(configModule: ConfigModule, wSHttpModule: WSHttpModule) {
+class KeystoreModule(
+    configModule: ConfigModule,
+    wSHttpModule: WSHttpModule
+) {
 
   val sessionCacheConnector: SessionCacheConnector = new SessionCacheConnector(
     configModule.appConfig.appName,
@@ -29,4 +32,6 @@ class KeystoreModule(configModule: ConfigModule, wSHttpModule: WSHttpModule) {
   )
 
   val repeatingComponentService: RepeatingComponentService = new RepeatingComponentService(sessionCacheConnector, configModule)
+
+  val repeatProxy = new RepeatProxy(repeatingComponentService, configModule.isKeyStore)
 }

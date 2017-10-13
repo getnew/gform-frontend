@@ -18,9 +18,9 @@ package uk.gov.hmrc.gform.services
 
 import play.api.libs.json.Json
 import uk.gov.hmrc.gform.Spec
-import uk.gov.hmrc.gform.keystore.{ RepeatingComponentService, SessionCacheConnector }
+import uk.gov.hmrc.gform.keystore._
 import uk.gov.hmrc.gform.sharedmodel.ExampleData
-import uk.gov.hmrc.gform.sharedmodel.form.RepeatingGroup
+import uk.gov.hmrc.gform.sharedmodel.form.{ FormField, RepeatingGroup }
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
 import uk.gov.hmrc.http.cache.client.CacheMap
 import uk.gov.hmrc.play.http.HeaderCarrier
@@ -40,7 +40,9 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
       override def fetch()(implicit hc: HeaderCarrier): Future[Option[CacheMap]] = Future.successful(None)
     }
 
-    val testService = new RepeatingComponentService(testSessionCacheConnector, null)
+    val mockRepeatingService = new RepeatingComponentService(testSessionCacheConnector, null)
+
+    val testService = new RepeatProxy(mockRepeatingService, true)
 
     testService.getAllSections(formTemplate, Map.empty).futureValue shouldBe List(`section - group`)
   }
@@ -53,13 +55,36 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
       override def fetch()(implicit hc: HeaderCarrier): Future[Option[CacheMap]] = Future.successful(None)
     }
 
-    val testService = new RepeatingComponentService(testSessionCacheConnector, null)
+    val mockRepeatingService = new RepeatingComponentService(testSessionCacheConnector, null)
+
+    val testService = new RepeatProxy(mockRepeatingService, true)
 
     val expectedList = List(`section - group`)
 
     testService.getAllSections(formTemplate, Map.empty).futureValue shouldBe expectedList
   }
 
+//  it should "return dynamically created sections when field in repeatsMax is number and no form data" in new ExampleData {
+//
+//    override def `repeating section` = super.`repeating section`.copy(repeatsMax = Some(TextExpression(FormCtx("number"))))
+//    override val formTemplate = super.formTemplate.copy(sections = List(`section - number`, `repeating section`))
+//
+//    override def `formField - number` = FormField(`fieldId - number`, "2")
+//
+//    val testSessionCacheConnector = new SessionCacheConnector(null, null, null, null) {
+//      override def fetch()(implicit hc: HeaderCarrier): Future[Option[CacheMap]] = Future.successful(None)
+//    }
+//
+//    val mockRepeatingService = new RepeatingComponentService(testSessionCacheConnector, null)
+//
+//    val testService = new RepeatProxy(mockRepeatingService, true)
+//
+//    val expectedList = List(`section - number`, ShapeHelper.copySection(`repeating section`)(1), ShapeHelper.copySection(`repeating section`)(2))
+//
+//    testService.getAllSections(formTemplate, rawDataFromBrowser).futureValue shouldBe expectedList
+//  } //Test tests are for new RepeatingService
+
+  /** TODO These repeating sections are multiplying on the number of elements in a group ??? is this wanted functionality **/
   it should "return dynamically created sections (title and shortName text built dynamically) when field to track in repeating group, and non-empty form data" in {
 
     val thisGroup = `group - type`.copy(
@@ -91,7 +116,9 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
       override def fetch()(implicit hc: HeaderCarrier): Future[Option[CacheMap]] = Future.successful(Some(mockCache))
     }
 
-    val testService = new RepeatingComponentService(testSessionCacheConnector, null)
+    val mockRepeatingService = new RepeatingComponentService(testSessionCacheConnector, null)
+
+    val testService = new RepeatProxy(mockRepeatingService, true)
 
     val expectedList = List(thisSection1, sectionR, sectionR2)
 
@@ -114,7 +141,9 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
       override def fetch()(implicit hc: HeaderCarrier): Future[Option[CacheMap]] = Future.successful(Some(mockCache))
     }
 
-    val testService = new RepeatingComponentService(testSessionCacheConnector, null)
+    val mockRepeatingService = new RepeatingComponentService(testSessionCacheConnector, null)
+
+    val testService = new RepeatProxy(mockRepeatingService, true)
 
     val textFieldDosR = `fieldValue - surname`.copy(id = FormComponentId(s"1_${`fieldId - surname`.value}"))
     val sectionR = thisSection2.copy(fields = List(textFieldDosR), title = "Repeating section title 1", shortName = Some("shortName 1"))
@@ -122,6 +151,7 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
 
     val formData = Map(`fieldId - firstName` -> Seq("1"))
 
+    println(Json.prettyPrint(Json.toJson(formTemplate)))
     testService.getAllSections(formTemplate, formData).futureValue shouldBe expectedList
   }
 
@@ -136,7 +166,9 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
       override def fetch()(implicit hc: HeaderCarrier): Future[Option[CacheMap]] = Future.successful(None)
     }
 
-    val testService = new RepeatingComponentService(testSessionCacheConnector, null)
+    val mockRepeatingService = new RepeatingComponentService(testSessionCacheConnector, null)
+
+    val testService = new RepeatProxy(mockRepeatingService, true)
 
     val textFieldDos1 = `fieldValue - surname`.copy(id = FormComponentId(s"1_${`fieldId - surname`.value}"))
     val textFieldDos2 = `fieldValue - surname`.copy(id = FormComponentId(s"2_${`fieldId - surname`.value}"))
@@ -146,6 +178,8 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
 
     val formData = Map(`fieldId - firstName` -> Seq("2"))
 
+    println(Json.prettyPrint(Json.toJson(formTemplate)))
     testService.getAllSections(formTemplate, formData).futureValue shouldBe expectedList
   }
+  /** THESE TESTS ARE WEIRD HAVE TO ASK TENOCH **/
 }

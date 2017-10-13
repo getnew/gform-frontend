@@ -28,7 +28,7 @@ import uk.gov.hmrc.gform.fileupload._
 import uk.gov.hmrc.gform.gformbackend.GformConnector
 import ValidationUtil.{ ValidatedType, _ }
 import play.api.Logger
-import uk.gov.hmrc.gform.keystore.RepeatingComponentService
+import uk.gov.hmrc.gform.keystore.{ RepeatProxy, RepeatingComponentService }
 import uk.gov.hmrc.gform.models._
 import uk.gov.hmrc.gform.sharedmodel.formtemplate.{ UkSortCode, _ }
 import uk.gov.hmrc.gform.sharedmodel.form.{ EnvelopeId, FileId }
@@ -46,7 +46,7 @@ import scala.util.{ Failure, Success, Try }
 class ValidationService(
     fileUploadService: FileUploadService,
     gformConnector: GformConnector,
-    repeatService: RepeatingComponentService
+    repeatService: RepeatProxy
 ) {
 
   private def validateFieldValue(fieldValue: FormComponent, data: Map[FormComponentId, Seq[String]], envelopeId: EnvelopeId)(implicit hc: HeaderCarrier): Future[ValidatedType] =

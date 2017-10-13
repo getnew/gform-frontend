@@ -31,6 +31,6 @@ class ValidationModule(
   val validationService = new ValidationService(
     fileUploadModule.fileUploadService,
     gformBackendModule.gformConnector,
-    keystoreModule.repeatingComponentService
+    keystoreModule.repeatProxy
   )
 }

@@ -19,7 +19,7 @@ package uk.gov.hmrc.gform.sharedmodel.form
 import julienrf.json.derived
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
-import uk.gov.hmrc.gform.sharedmodel.UserId
+import uk.gov.hmrc.gform.sharedmodel.{ Shape, UserId }
 import uk.gov.hmrc.gform.sharedmodel.formtemplate.FormTemplateId
 
 case class Form(
@@ -28,6 +28,7 @@ case class Form(
   userId: UserId,
   formTemplateId: FormTemplateId,
   repeatingGroupStructure: Option[RepeatingGroupStructure],
+  shape: Shape,
   formData: FormData,
   status: FormStatus
 )
@@ -40,6 +41,7 @@ object Form {
     UserId.oformat and
     FormTemplateId.vformat and
     RepeatingGroupStructure.optionFormat and
+    Shape.format and
     FormData.format and
     FormStatus.format
   )(Form.apply _)
@@ -50,6 +52,7 @@ object Form {
       UserId.oformat.writes(form.userId) ++
       FormTemplateId.oformat.writes(form.formTemplateId) ++
       RepeatingGroupStructure.optionFormat.writes(form.repeatingGroupStructure) ++
+      Shape.format.writes(form.shape) ++
       FormData.format.writes(form.formData) ++
       FormStatus.format.writes(form.status))
 

@@ -187,6 +187,8 @@ trait ExampleSection { dependecies: ExampleFieldId with ExampleFieldValue =>
 
   def `section - group` = `section - about you`.copy(fields = List(`fieldValue - group`))
 
+  def `section - number` = `section - about you`.copy(fields = List(`fieldValue - number`))
+
   def allSections = List(
     `section - about you`,
     `section - businessDetails`
@@ -286,6 +288,7 @@ trait ExampleForm { dependsOn: ExampleFormField with ExampleFormTemplate =>
     userId,
     formTemplateId,
     repeatingGroupStructure,
+    Shape(Map("GroupId" -> 0, "Goes Here" -> 1), Map("Section" -> 0)),
     formData,
     InProgress
   )

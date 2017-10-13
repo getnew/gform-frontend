@@ -25,6 +25,7 @@ import uk.gov.hmrc.gform.controllers.AuthenticatedRequestActions
 import uk.gov.hmrc.gform.controllers.helpers.FormDataHelpers.{ get, processResponseDataFromBody }
 import uk.gov.hmrc.gform.fileupload.Envelope
 import uk.gov.hmrc.gform.gformbackend.GformConnector
+import uk.gov.hmrc.gform.sharedmodel.Shape
 import uk.gov.hmrc.gform.sharedmodel.form.EnvelopeId
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
 import uk.gov.hmrc.gform.validation.{ FormFieldValidationResult, ValidationService }
@@ -51,7 +52,7 @@ class EnrolmentController(
     gformConnector.getFormTemplate(formTemplateId).flatMap { formTemplate =>
       formTemplate.authConfig match {
         case authConfig: AuthConfigWithEnrolment =>
-          renderer.renderEnrolmentSection(formTemplate, authConfig.enrolmentSection, Map.empty, Nil, None, lang).map(Ok(_))
+          renderer.renderEnrolmentSection(formTemplate, authConfig.enrolmentSection, Map.empty, Nil, None, Shape(Map.empty[String, Int], Map.empty[String, Int]), lang).map(Ok(_))
         case _ => Future.successful(
           Redirect(uk.gov.hmrc.gform.auth.routes.ErrorController.insufficientEnrolments())
             .flashing("formTitle" -> formTemplate.formName)
@@ -73,7 +74,7 @@ class EnrolmentController(
 
             get(data, FormComponentId("save")) match {
               case "Continue" :: Nil =>
-                validationResultF.flatMap(processValidation(formTemplate, authConfig, data, lang))
+                validationResultF.flatMap(processValidation(formTemplate, authConfig, data, Shape(Map.empty[String, Int], Map.empty[String, Int]), lang))
               case _ =>
                 Future.successful(BadRequest("Cannot determine action"))
             }
@@ -91,6 +92,7 @@ class EnrolmentController(
     formTemplate: FormTemplate,
     authConfig: AuthConfigWithEnrolment,
     data: Map[FormComponentId, Seq[String]],
+    shape: Shape,
     lang: Option[String]
   )(validationResult: ValidatedType)(implicit hc: HeaderCarrier, request: Request[_]): Future[Result] = {
 
@@ -107,7 +109,7 @@ class EnrolmentController(
         }.recoverWith(handleEnrolmentException(authConfig, data, formTemplate, lang))
 
       case validationResult @ Invalid(_) =>
-        displayEnrolmentSectionWithErrors(validationResult, data, authConfig, formTemplate, lang)
+        displayEnrolmentSectionWithErrors(validationResult, data, authConfig, formTemplate, shape, lang)
     }
   }
 
@@ -157,12 +159,13 @@ class EnrolmentController(
     data: Map[FormComponentId, Seq[String]],
     authConfig: AuthConfigWithEnrolment,
     formTemplate: FormTemplate,
+    shape: Shape,
     lang: Option[String]
   )(implicit hc: HeaderCarrier, request: Request[_]): Future[Result] = {
 
     val errorMap = getErrorMap(validationResult, data, authConfig)
     for {
-      html <- renderer.renderEnrolmentSection(formTemplate, authConfig.enrolmentSection, data, errorMap, Some(validationResult), lang)
+      html <- renderer.renderEnrolmentSection(formTemplate, authConfig.enrolmentSection, data, errorMap, Some(validationResult), shape, lang)
     } yield Ok(html)
   }
 

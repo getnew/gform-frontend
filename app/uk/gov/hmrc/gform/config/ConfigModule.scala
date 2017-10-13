@@ -33,6 +33,7 @@ class ConfigModule(playBuiltInsModule: PlayBuiltInsModule) {
   val whiteListedUsers: List[String] = typesafeConfig.getString("whitelisted-users").split(",").map(_.trim).toList
   val timeOut: Int = typesafeConfig.getInt("future.timeout")
 
+  val isKeyStore: Boolean = typesafeConfig.getBoolean("feature.keystore")
   val appConfig: AppConfig = AppConfig.loadOrThrow()
 
   val serviceConfig: ServicesConfig = {
