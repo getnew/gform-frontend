@@ -31,4 +31,8 @@ object LabelHelper {
     case Some(txt) if text.get.contains("$n") => Some(txt.replace("$n", index.toString))
     case _ => text
   }
+
+  def newComponent(formComponent: FormComponent) = {
+
+  }
 }

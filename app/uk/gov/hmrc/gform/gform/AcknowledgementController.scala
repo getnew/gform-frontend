@@ -61,7 +61,7 @@ class AcknowledgementController(
       case Submitted =>
         // format: OFF
         for {
-          summaryHml  <- summaryController.getSummaryHTML(formId, cache, lang)
+          summaryHml  <- summaryController.getSummaryHTML(formId, cache, cache.form.shape, lang)
           formString  =  nonRepudiationHelpers.formDataToJson(cache.form)
           hashedValue =  nonRepudiationHelpers.computeHash(formString)
           _           =  nonRepudiationHelpers.sendAuditEvent(hashedValue, formString, eventId)

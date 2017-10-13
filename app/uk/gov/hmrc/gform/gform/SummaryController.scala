@@ -29,8 +29,9 @@ import uk.gov.hmrc.gform.controllers.helpers.FormDataHelpers._
 import uk.gov.hmrc.gform.controllers.{ AuthCacheWithForm, AuthenticatedRequestActions, ErrResponder }
 import uk.gov.hmrc.gform.fileupload.{ Envelope, FileUploadService }
 import uk.gov.hmrc.gform.gformbackend.GformConnector
-import uk.gov.hmrc.gform.keystore.RepeatingComponentService
+import uk.gov.hmrc.gform.keystore.{ RepeatProxy, RepeatingComponentService }
 import uk.gov.hmrc.gform.sharedmodel
+import uk.gov.hmrc.gform.sharedmodel.Shape
 import uk.gov.hmrc.gform.sharedmodel.form._
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
 import uk.gov.hmrc.gform.summary.SummaryRenderingService
@@ -46,7 +47,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 class SummaryController(
     i18nSupport: I18nSupport,
     auth: AuthenticatedRequestActions,
-    repeatService: RepeatingComponentService,
+    repeatService: RepeatProxy,
     fileUploadService: FileUploadService,
     validationService: ValidationService,
     pdfService: PdfGeneratorService,
@@ -59,7 +60,7 @@ class SummaryController(
 
   def summaryById(formId: FormId, formTemplateId4Ga: FormTemplateId, lang: Option[String]): Action[AnyContent] = auth.async(formId) { implicit request => cache =>
     cache.form.status match {
-      case sharedmodel.form.Summary => getSummaryHTML(formId, cache, lang).map(Ok(_))
+      case sharedmodel.form.Summary => getSummaryHTML(formId, cache, cache.form.shape, lang).map(Ok(_))
       case _ => errResponder.notFound(request, "Summary was hit before status was changed.")
     }
   }
@@ -78,7 +79,7 @@ class SummaryController(
       val isFormValidF: Future[Boolean] = formFieldValidationResultsF.map(x => ValidationUtil.isFormValid(x._2))
 
       lazy val redirectToDeclaration = gformConnector
-        .updateUserData(formId, UserData(cache.form.formData, cache.form.repeatingGroupStructure, Validated))
+        .updateUserData(formId, UserData(cache.form.formData, cache.form.repeatingGroupStructure, cache.form.shape, Validated))
         .map { _ =>
           Redirect(routes.DeclarationController.showDeclaration(formId, formTemplateId4Ga, lang))
         }
@@ -107,7 +108,7 @@ class SummaryController(
       case InProgress | Summary =>
         // format: OFF
         for {
-          summaryHml <- getSummaryHTML(formId, cache, lang)
+          summaryHml <- getSummaryHTML(formId, cache, cache.form.shape, lang)
           htmlForPDF = pdfService.sanitiseHtmlForPDF(summaryHml)
           pdfStream <- pdfService.generatePDF(htmlForPDF)
         } yield Result(
@@ -125,7 +126,7 @@ class SummaryController(
     val filteredSections = sectionsF.map(_.filter(x => BooleanExpr.isTrue(x.includeIf.map(_.expr).getOrElse(IsTrue), data)))
     for {// format: OFF
       sections          <- filteredSections
-      allFields         =  sections.flatMap(repeatService.atomicFields)
+      allFields         =  sections.flatMap(repeatService.atomicFields(_, cache.form.shape, cache.formTemplate))
       v1                <- sections.map(x => validationService.validateForm(allFields, x, cache.form.envelopeId)(data)).sequenceU.map(Monoid[ValidatedType].combineAll)
       v                 =  Monoid.combine(
                              v1,
@@ -136,7 +137,7 @@ class SummaryController(
     } yield (v, errors)
   }
 
-  def getSummaryHTML(formId: FormId, cache: AuthCacheWithForm, lang: Option[String])(implicit request: Request[_]): Future[Html] = {
+  def getSummaryHTML(formId: FormId, cache: AuthCacheWithForm, shape: Shape, lang: Option[String])(implicit request: Request[_]): Future[Html] = {
     val data = FormDataHelpers.formDataMap(cache.form.formData)
     val envelopeF = fileUploadService.getEnvelope(cache.form.envelopeId)
 
@@ -144,7 +145,7 @@ class SummaryController(
     for {
       envelope          <- envelopeF
       (v, _)            <- validateForm(cache, envelope)
-      result            <- SummaryRenderingService.renderSummary(cache.formTemplate, v, data, formId, repeatService, envelope, lang, frontendAppConfig)
+      result            <- SummaryRenderingService.renderSummary(cache.formTemplate, v, data, formId, repeatService, envelope, lang, frontendAppConfig, shape)
     } yield result
   }
 }

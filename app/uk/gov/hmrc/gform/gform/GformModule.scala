@@ -49,7 +49,7 @@ class GformModule(
   private val prepopService: PrepopService = new PrepopService(eeittConnector, authContextPrepop, keystoreModule.repeatingComponentService)
 
   private val sectionRenderingService: SectionRenderingService = new SectionRenderingService(
-    keystoreModule.repeatingComponentService,
+    keystoreModule.repeatProxy,
     prepopService,
     configModule.frontendAppConfig
   )
@@ -65,7 +65,7 @@ class GformModule(
     controllersModule.authenticatedRequestActions,
     gformBackendModule.gformConnector,
     auditingModule.auditService,
-    keystoreModule.repeatingComponentService,
+    keystoreModule.repeatProxy,
     sectionRenderingService,
     validationModule.validationService,
     authModule.authService
@@ -86,7 +86,7 @@ class GformModule(
     configModule.frontendAppConfig,
     playBuiltInsModule.i18nSupport,
     controllersModule.authenticatedRequestActions,
-    keystoreModule.repeatingComponentService,
+    keystoreModule.repeatProxy,
     fileUploadModule.fileUploadService,
     validationModule.validationService,
     sectionRenderingService,
@@ -96,7 +96,7 @@ class GformModule(
   val summaryController: SummaryController = new SummaryController(
     playBuiltInsModule.i18nSupport,
     controllersModule.authenticatedRequestActions,
-    keystoreModule.repeatingComponentService,
+    keystoreModule.repeatProxy,
     fileUploadModule.fileUploadService,
     validationModule.validationService,
     pdfGeneratorModule.pdfGeneratorService,

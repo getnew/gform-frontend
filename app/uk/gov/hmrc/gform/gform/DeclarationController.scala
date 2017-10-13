@@ -24,7 +24,7 @@ import uk.gov.hmrc.gform.controllers.{ AuthenticatedRequestActions, ControllersM
 import uk.gov.hmrc.gform.controllers.helpers.FormDataHelpers.{ get, processResponseDataFromBody }
 import uk.gov.hmrc.gform.fileupload.Envelope
 import uk.gov.hmrc.gform.gformbackend.{ GformBackendModule, GformConnector }
-import uk.gov.hmrc.gform.keystore.RepeatingComponentService
+import uk.gov.hmrc.gform.keystore.{ RepeatProxy, RepeatingComponentService }
 import uk.gov.hmrc.gform.sharedmodel.form._
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
 import uk.gov.hmrc.gform.validation.ValidationUtil.ValidatedType
@@ -39,7 +39,7 @@ class DeclarationController(
     auth: AuthenticatedRequestActions,
     gformConnector: GformConnector,
     auditService: AuditService,
-    repeatService: RepeatingComponentService,
+    repeatService: RepeatProxy,
     renderer: SectionRenderingService,
     validationService: ValidationService,
     authService: AuthService
@@ -66,7 +66,7 @@ class DeclarationController(
           case Valid(()) =>
             val updatedForm = updateFormWithDeclaration(cache.form, cache.formTemplate, data)
             for {
-              _ <- gformConnector.updateUserData(cache.form._id, UserData(updatedForm.formData, None, Signed))
+              _ <- gformConnector.updateUserData(cache.form._id, UserData(updatedForm.formData, None, cache.form.shape, Signed))
               _ <- gformConnector.submitForm(formId, customerId)
               _ <- repeatService.clearSession
             } yield {

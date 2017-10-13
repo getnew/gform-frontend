@@ -14,19 +14,13 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.gform.sharedmodel.form
+package uk.gov.hmrc.gform.sharedmodel
 
-import play.api.libs.json.{ Json, OFormat }
-import uk.gov.hmrc.gform.sharedmodel.Shape
+import play.api.libs.json.Json
+import uk.gov.hmrc.gform.sharedmodel.formtemplate.FormComponentId
 
-case class UserData(
-  formData: FormData,
-  repeatingGroupStructure: Option[RepeatingGroupStructure],
-  shape: Shape,
-  formStatus: FormStatus
-)
+case class Shape(groups: Map[String, Int], sections: Map[String, Int])
 
-object UserData {
-
-  implicit val format: OFormat[UserData] = Json.format[UserData]
+object Shape {
+  implicit val format = Json.format[Shape]
 }

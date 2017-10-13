@@ -21,7 +21,7 @@ import uk.gov.hmrc.gform.service.LabelHelper
 import uk.gov.hmrc.gform.sharedmodel.form.{ RepeatingGroup, RepeatingGroupStructure }
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
 import uk.gov.hmrc.http.cache.client.CacheMap
-import uk.gov.hmrc.play.http.HeaderCarrier
+import uk.gov.hmrc.play.http.{ HeaderCarrier, HttpResponse }
 
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -169,7 +169,7 @@ class RepeatingComponentService(
     } else {
       val groupFieldValue = repeatingGroupsFound.head
       val fieldsInGroup = cacheMap.getEntry[RepeatingGroup](groupFieldValue.id.value).map(_.list).getOrElse(Nil).flatten
-      Future.successful(fieldsInGroup.size)
+      Future.successful(fieldsInGroup.size) //TODO ask tenoch about this case
     }
   }
 
@@ -378,7 +378,7 @@ class RepeatingComponentService(
       ))
   }
 
-  def clearSession(implicit hc: HeaderCarrier) = sessionCache.remove()
+  def clearSession(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Unit] = sessionCache.remove().map(_ => ())
 
   def atomicFields(section: BaseSection)(implicit hc: HeaderCarrier): List[FormComponent] = {
     def atomicFields(fields: List[FormComponent]): List[FormComponent] = {

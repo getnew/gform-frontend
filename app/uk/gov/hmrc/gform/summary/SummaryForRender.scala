@@ -22,9 +22,10 @@ import play.api.mvc.Request
 import play.twirl.api.Html
 import uk.gov.hmrc.gform.config.FrontendAppConfig
 import uk.gov.hmrc.gform.fileupload.Envelope
-import uk.gov.hmrc.gform.keystore.RepeatingComponentService
+import uk.gov.hmrc.gform.keystore.{ RepeatProxy, RepeatingComponentService }
 import uk.gov.hmrc.gform.models.helpers.Fields
 import uk.gov.hmrc.gform.models.helpers.Javascript.fieldJavascript
+import uk.gov.hmrc.gform.sharedmodel.Shape
 import uk.gov.hmrc.gform.sharedmodel.form.FormId
 import uk.gov.hmrc.gform.sharedmodel.form.{ FormId, RepeatingGroup }
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
@@ -46,16 +47,17 @@ object SummaryRenderingService {
     validatedType: ValidatedType,
     formFields: Map[FormComponentId, Seq[String]],
     formId: FormId,
-    repeatService: RepeatingComponentService,
+    repeatService: RepeatProxy,
     envelope: Envelope,
     lang: Option[String],
-    frontendAppConfig: FrontendAppConfig
+    frontendAppConfig: FrontendAppConfig,
+    shape: Shape
   )(implicit
     request: Request[_],
     messages: Messages,
     hc: HeaderCarrier,
     ec: ExecutionContext): Future[Html] = {
-    summaryForRender(validatedType, formFields, formId, formTemplate, repeatService, envelope, lang)
+    summaryForRender(validatedType, formFields, formId, formTemplate, repeatService, envelope, shape, lang)
       .map(s => summary(formTemplate, s, formId, formTemplate.formCategory.getOrElse(Default), lang, frontendAppConfig))
   }
 
@@ -64,15 +66,16 @@ object SummaryRenderingService {
     data: Map[FormComponentId, Seq[String]],
     formId: FormId,
     formTemplate: FormTemplate,
-    repeatService: RepeatingComponentService,
+    repeatService: RepeatProxy,
     envelope: Envelope,
+    shape: Shape,
     lang: Option[String]
   )(implicit
     hc: HeaderCarrier,
     ec: ExecutionContext): Future[SummaryForRender] = {
 
     repeatService.getAllSections(formTemplate, data).flatMap { sections =>
-      val fields: List[FormComponent] = sections.flatMap(repeatService.atomicFields)
+      val fields: List[FormComponent] = sections.flatMap(repeatService.atomicFields(_, shape, formTemplate))
 
       def validate(formComponent: FormComponent): Option[FormFieldValidationResult] = {
         val gformErrors = validatedType match {
@@ -87,7 +90,7 @@ object SummaryRenderingService {
         def groupToHtml(fieldValue: FormComponent, presentationHint: List[PresentationHint]): Future[Html] = fieldValue.`type` match {
           case groupField: Group if presentationHint contains SummariseGroupAsGrid =>
             val htmlList: Future[List[Html]] =
-              repeatService.getAllFieldsInGroupForSummary(fieldValue, groupField).map(y => for {
+              repeatService.getAllFieldsInGroupForSummary(fieldValue, groupField, formTemplate, shape).map(y => for {
                 group <- y
                 value = group.map(validate)
               } yield {
@@ -96,7 +99,7 @@ object SummaryRenderingService {
             htmlList.map(y => group(fieldValue, y, groupField.orientation))
           case groupField @ Group(_, orientation, _, _, _, _) =>
             for {
-              fvs <- repeatService.getAllFieldsInGroupForSummary(fieldValue, groupField)
+              fvs <- repeatService.getAllFieldsInGroupForSummary(fieldValue, groupField, formTemplate, shape)
               htmlList <- Future.sequence(fvs.flatMap(_.map { case (fv: FormComponent) => valueToHtml(fv) }.toList))
             } yield group(fieldValue, htmlList, orientation)
           case _ => valueToHtml(fieldValue)
@@ -141,7 +144,7 @@ object SummaryRenderingService {
               .map(z => x :: z)
         }).map(x => x.flatten) //TODO ask a better way to do this.
       }
-      val cacheMap: Future[CacheMap] = repeatService.getAllRepeatingGroups
+      val cacheMap: Future[CacheMap] = repeatService.getAllRepeatingGroups(shape, formTemplate)
       val repeatingGroups: Future[List[List[List[FormComponent]]]] = Future.sequence(sections.flatMap(_.fields).map(fv => (fv.id, fv.`type`)).collect {
         case (fieldId, group: Group) => cacheMap.map(_.getEntry[RepeatingGroup](fieldId.value).map(_.list).getOrElse(Nil))
       })
