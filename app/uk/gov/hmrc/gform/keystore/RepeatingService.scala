@@ -98,25 +98,25 @@ object RepeatingService {
       .collect {
         case x @ FormComponent(_, group: Group, _, _, _, _, _, _, _, _, _) => group
       }
-      .fold(data)(y => newData(shape, id, data, ShapeHelper.repeatGroup(y, shape)(remove), remove, getRepeatingGroup(id, formTemplate, shape).flatten))
+      .fold(data)(y => newData(shape, id, data, ShapeHelper.repeatGroup(y, shape)(remove), remove, getRepeatingGroup(id, formTemplate, shape)))
     Logger.debug(s"removeGroup data ${newDataValue}")
     getGroup(shape, id, x => Shape((shape.groups - id.value) + (id.value -> x.-(1)), shape.sections)) -> newDataValue.pure[Future]
   }
 
-  private def newData(shape: Shape, formComponentId: FormComponentId, data: Map[FormComponentId, Seq[String]], list: List[FormComponent], remove: Int, grouplist: List[FormComponent]): Map[FormComponentId, Seq[String]] = {
+  private def newData(shape: Shape, formComponentId: FormComponentId, data: Map[FormComponentId, Seq[String]], list: List[FormComponent], remove: Int, grouplist: List[List[FormComponent]]): Map[FormComponentId, Seq[String]] = {
     def renameData(data: Map[FormComponentId, Seq[String]], id: FormComponentId, shape: Shape, newId: FormComponentId) =
       data.get(id).fold(Map.empty[FormComponentId, Seq[String]])(x => Map(newId -> x))
     val (_, clean) = data.partition { case (id, value) => list.map(_.id).contains(id) }
-    val (x, oldData) = clean.partition { case (id, value) => grouplist.map(_.id).contains(id) }
+    val (x, oldData) = clean.partition { case (id, value) => grouplist.flatMap(_.map(_.id)).contains(id) }
     Logger.debug(s"newData clean ${clean}")
     Logger.debug(s"newData use ${x}")
     val dataNew =
-      grouplist.map(_.id)
-        .filter(y => x.get(y).isDefined)
+      grouplist.map(_.map(_.id))
+        .filter(y => y.map(z => x.get(z)).forall(_.isDefined))
         .zip(Stream from 1)
         .flatMap {
-          case (id, idx) => renameData(x, id, shape, ShapeHelper.rename2(idx, id))
-        }.toMap
+          case (id, idx) => id.map(y => renameData(x, y, shape, ShapeHelper.rename2(idx, y)))
+        }.flatMap(_.toMap)
     oldData ++ dataNew
   }
 
@@ -200,7 +200,7 @@ object ShapeHelper {
     if (int == 1)
       FormComponentId(a)
     else
-      FormComponentId(s"${int}_$a")
+      FormComponentId(s"${int - 1}_$a")
   }
 
 }
