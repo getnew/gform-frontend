@@ -54,6 +54,8 @@ class FormController(
   import i18nSupport._
 
   def newForm(formTemplateId: FormTemplateId, lang: Option[String]) = auth.async(formTemplateId) { implicit request => cache =>
+    Logger.debug(s"newForm cache.formTemplate ${cache.formTemplate}")
+
     result(cache.formTemplate, UserId(cache.retrievals.userDetails.groupIdentifier), lang)
 
   }
@@ -88,6 +90,7 @@ class FormController(
   def form(formId: FormId, formTemplateId4Ga: FormTemplateId, sectionNumber: SectionNumber, totalSections: Int, lang: Option[String]) = auth.async(formId) { implicit request => cache =>
     // TODO: Handle cases when the form is no longer marked as InProgress
     val fieldData = FormDataHelpers.formDataMap(cache.form.formData)
+    Logger.debug(s"form cache.formTemplate ${cache.formTemplate}")
 
     for {// format: OFF
       _               <- repeatService.loadData(cache.form.repeatingGroupStructure)
@@ -230,9 +233,9 @@ class FormController(
       def processAddGroup(groupId: String): Future[Result] = for {
         //format OFF
         dynamicSections <- sectionsF
-        (shape, optCompList) = repeatService.appendNewGroup(FormComponentId(groupId), cache.form.shape, cache.formTemplate)
+        (shape2, optCompList) = repeatService.appendNewGroup(FormComponentId(groupId), cache.form.shape, cache.formTemplate)
         list <- optCompList
-        (shape, keystore) = repeatService.getData(cache.form.shape, cache.formTemplate)
+        (shape, keystore) = repeatService.getData(shape2, cache.formTemplate)
         key <- keystore
         formData <- formDataF
         userData = UserData(formData, key, shape, InProgress)
@@ -247,18 +250,18 @@ class FormController(
         dynamicSections <- sectionsF
         (shape, updatedData) = repeatService.removeGroup(idx, FormComponentId(groupId), data, cache.form.shape, cache.formTemplate)
         newData <- updatedData
-        repeatingGroups <- repeatService.getAllRepeatingGroups(cache.form.shape, cache.formTemplate)
+        repeatingGroups <- repeatService.getAllRepeatingGroups(shape, cache.formTemplate)
         optCompList = repeatingGroups.getEntry[RepeatingGroup](groupId)
         envelope <- envelopeF
         section = dynamicSections(sectionNumber.value)
-        allFields = dynamicSections.flatMap(repeatService.atomicFields(_, cache.form.shape, cache.formTemplate))
-        sectionFields = repeatService.atomicFields(section, cache.form.shape, cache.formTemplate)
+        allFields = dynamicSections.flatMap(repeatService.atomicFields(_, shape, cache.formTemplate))
+        sectionFields = repeatService.atomicFields(section, shape, cache.formTemplate)
         v <- validationService.validateForm(sectionFields, section, cache.form.envelopeId)(newData)
         errors = validationService.evaluateValidation(v, allFields, newData, envelope).toMap
         formData = FormData(errors.values.toSeq.flatMap(_.toFormField))
-        (shape, keystore) = repeatService.getData(cache.form.shape, cache.formTemplate)
+        (shape2, keystore) = repeatService.getData(shape, cache.formTemplate)
         key <- keystore
-        userData = UserData(formData, key, shape, InProgress)
+        userData = UserData(formData, key, shape2, InProgress)
         _ <- gformConnector.updateUserData(formId, userData)
       } yield Redirect(routes.FormController.form(formId, cache.formTemplate._id, sectionNumber, dynamicSections.size, lang).url + anchor(optCompList.map(_.list)))
 

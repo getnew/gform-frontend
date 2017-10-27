@@ -35,6 +35,7 @@ class Navigator(sectionNumber: SectionNumber, sections: List[Section], data: Map
   require(sectionNumber <= maxSectionNumber, s"section number is to low: ${sectionNumber.value}")
 
   val RemoveGroupR = "RemoveGroup-(\\d*)_(.*)".r.unanchored
+  val AddGroupR = "AddGroup-(.*)".r.unanchored
   def navigate: Direction = actionValue match {
     // format: OFF
     case "Save"                               => SaveAndExit
@@ -42,7 +43,7 @@ class Navigator(sectionNumber: SectionNumber, sections: List[Section], data: Map
     case "Continue" if !isLastSectionNumber   => SaveAndContinue(nextSectionNumber)
     case "Back"                               => Back(previousOrCurrentSectionNumber)
     case "BackToSummary"                      => BackToSummary
-    case  x if x.startsWith("AddGroup")       => AddGroup(x)
+    case  AddGroupR(x)                        => AddGroup(x)
     case  RemoveGroupR(idx, x)                => RemoveGroup(idx.toInt, x)
     case other                                => throw new BadRequestException(s"Invalid action: $other")
     // format: ON

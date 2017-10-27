@@ -18,6 +18,7 @@ package uk.gov.hmrc.gform.keystore
 
 import cats.data._
 import cats.implicits._
+import play.api.Logger
 import uk.gov.hmrc.gform.keystore.RepeatingService.RepeatingStructure
 import uk.gov.hmrc.gform.sharedmodel.Shape
 import uk.gov.hmrc.gform.sharedmodel.form.RepeatingGroupStructure
@@ -56,10 +57,17 @@ class RepeatProxy(
   }
 
   def getData(shape: Shape, formTemplate: FormTemplate)(implicit hc: HeaderCarrier, ec: ExecutionContext): (Shape, Future[Option[RepeatingGroupStructure]]) = {
-    if (isKeyStore)
-      shape -> repeatingComponentService.getData()
+    val dF: Future[Option[RepeatingGroupStructure]] = if (isKeyStore)
+      repeatingComponentService.getData()
     else
-      shape -> repeatingService.getAllRepeatingGroups(shape, formTemplate).map(y => RepeatingGroupStructure(y.data).some)
+      repeatingService.getAllRepeatingGroups(shape, formTemplate).map(y => RepeatingGroupStructure(y.data).some)
+    (shape, dF.map {
+      case d: Option[RepeatingGroupStructure] => {
+        Logger.debug(s"""shape is ${shape}""")
+        Logger.debug(s"""getData is ${d.toString}""")
+        d
+      }
+    })
   }
 
   def loadData(data: Option[RepeatingGroupStructure])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] = {
@@ -70,17 +78,39 @@ class RepeatProxy(
   }
 
   def getAllFieldsInGroup(fc: FormComponent, group: Group, formTemplate: FormTemplate, shape: Shape)(implicit hc: HeaderCarrier, ec: ExecutionContext): RepeatingStructure = {
-    if (isKeyStore)
+    val rF = if (isKeyStore)
       repeatingComponentService.getAllFieldsInGroup(fc, group)
     else
       repeatingService.getRepeatingGroup(fc.id, formTemplate, shape)
+    rF.map {
+      case r: RepeatingStructure => {
+        Logger.debug(s"repeatingStructure is ${r.toString}")
+        r
+      }
+    }
+  }
+
+  private def isMax(max: Option[Int], size: Int): Boolean = {
+    max match {
+      case Some(m) => size == m
+      case None => false
+    }
   }
 
   def getRepeatingGroupsForRendering(formComponent: FormComponent, group: Group, formTemplate: FormTemplate, shape: Shape)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[(RepeatingStructure, Boolean)] = {
-    if (isKeyStore)
+    val xF = if (isKeyStore)
       repeatingComponentService.getRepeatingGroupsForRendering(formComponent, group)
     else
-      repeatingService.getRepeatingGroup(formComponent.id, formTemplate, shape).pure[Future].map(x => x -> true)
+      repeatingService.getRepeatingGroup(formComponent.id, formTemplate, shape).
+        pure[Future].
+        map(x => (x, isMax(group.repeatsMax, x.size)))
+    xF.map {
+      case (r, b) => {
+        Logger.debug(s"ForRendering repeatingStructure is ${r.toString} and ${b}")
+        (r, b)
+      }
+    }
+    xF
   }
 
   def getAllFieldsInGroupForSummary(formComponent: FormComponent, group: Group, formTemplate: FormTemplate, shape: Shape)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[RepeatingStructure] = {

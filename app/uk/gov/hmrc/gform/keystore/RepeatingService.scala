@@ -21,9 +21,11 @@ import javax.lang.model.`type`.ExecutableType
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
 import cats.data._
 import cats.implicits._
+import play.api.Logger
 import play.api.libs.json.Json
 import uk.gov.hmrc.gform.service.LabelHelper
 import uk.gov.hmrc.gform.sharedmodel.Shape
+import uk.gov.hmrc.gform.sharedmodel.form.RepeatingGroup
 import uk.gov.hmrc.http.cache.client.CacheMap
 
 import scala.concurrent.{ ExecutionContext, Future }
@@ -47,7 +49,7 @@ object RepeatingService {
       .sections
       .flatMap(_.fields)
       .find(_.id == id)
-      .map(maybeRepeatGroup(_, shape)).toList
+      .map(maybeRepeatGroup(_, shape)).getOrElse(Nil)
 
   def getAllRepeatingGroups(shape: Shape, formTemplate: FormTemplate)(implicit ex: ExecutionContext): Future[CacheMap] =
     CacheMap(
@@ -55,34 +57,34 @@ object RepeatingService {
       shape
         .groups
         .keys
-        .map(id => id -> findGroup(formTemplate, id).map(x => maybeRepeatGroup(x, shape)).fold(Json.toJson(List.empty[List[FormComponent]]))(x => Json.toJson(List(x)))).toMap
+        .map(id => id -> findGroup(formTemplate, id).map(x => maybeRepeatGroup(x, shape)).fold(Json.toJson(RepeatingGroup(List.empty[List[FormComponent]], false)))(x => Json.toJson(RepeatingGroup(x, true)))).toMap
     ).pure[Future]
 
   def getSectionFields(section: BaseSection, shape: Shape): List[FormComponent] =
     section
       .fields
-      .flatMap(maybeRepeatGroup(_, shape))
+      .flatMap(maybeRepeatGroup(_, shape).flatten)
 
   def getAllFields(shape: Shape, formTemplate: FormTemplate): List[FormComponent] =
     formTemplate
       .sections
       .flatMap(_.fields)
-      .flatMap(maybeRepeatGroup(_, shape)) //Gets every field in section.
+      .flatMap(maybeRepeatGroup(_, shape).flatten) //Gets every field in section.
 
-  private def maybeRepeatGroup(formComponent: FormComponent, shape: Shape): List[FormComponent] =
+  private def maybeRepeatGroup(formComponent: FormComponent, shape: Shape): List[List[FormComponent]] =
     formComponent match {
       case f @ FormComponent(_, group: Group, _, _, _, _, _, _, _, _, _) =>
         group
           .repeatsMin
-          .fold(group.fields)(min =>
+          .fold(List(group.fields))(min =>
             repeat(
               shape
                 .groups
                 .getOrElse(f.id.value, min),
               ShapeHelper
                 .repeatGroup(group, shape)
-            ).flatten)
-      case _ => List(formComponent)
+            ))
+      case _ => List(List(formComponent))
     }
 
   def addGroup(shape: Shape, id: FormComponentId, formTemplate: FormTemplate)(implicit ex: ExecutionContext): (Shape, Future[Option[RepeatingStructure]]) =
@@ -96,22 +98,26 @@ object RepeatingService {
       .collect {
         case x @ FormComponent(_, group: Group, _, _, _, _, _, _, _, _, _) => group
       }
-      .fold(data)(y => newData(shape, id, data, y.fields, remove))
+      .fold(data)(y => newData(shape, id, data, ShapeHelper.repeatGroup(y, shape)(remove), remove, getRepeatingGroup(id, formTemplate, shape).flatten))
+    Logger.debug(s"removeGroup data ${newDataValue}")
     getGroup(shape, id, x => Shape((shape.groups - id.value) + (id.value -> x.-(1)), shape.sections)) -> newDataValue.pure[Future]
   }
 
-  private def newData(shape: Shape, formComponentId: FormComponentId, data: Map[FormComponentId, Seq[String]], list: List[FormComponent], remove: Int): Map[FormComponentId, Seq[String]] = {
+  private def newData(shape: Shape, formComponentId: FormComponentId, data: Map[FormComponentId, Seq[String]], list: List[FormComponent], remove: Int, grouplist: List[FormComponent]): Map[FormComponentId, Seq[String]] = {
     def renameData(data: Map[FormComponentId, Seq[String]], id: FormComponentId, shape: Shape, newId: FormComponentId) =
-      data.get(id).fold(data)(x => Map(newId -> x))
-    val (clean, use) = data.partition { case (id, value) => list.map(_.id).contains(id) }
+      data.get(id).fold(Map.empty[FormComponentId, Seq[String]])(x => Map(newId -> x))
+    val (_, clean) = data.partition { case (id, value) => list.map(_.id).contains(id) }
+    val (x, oldData) = clean.partition { case (id, value) => grouplist.map(_.id).contains(id) }
+    Logger.debug(s"newData clean ${clean}")
+    Logger.debug(s"newData use ${x}")
     val dataNew =
-      list.map(_.id)
-        .filter(_.value == s"${remove}_${formComponentId.value}")
+      grouplist.map(_.id)
+        .filter(y => x.get(y).isDefined)
         .zip(Stream from 1)
         .flatMap {
-          case (id, idx) => renameData(use - FormComponentId(s"${remove}_$formComponentId"), id, shape, ShapeHelper.rename(idx, id))
+          case (id, idx) => renameData(x, id, shape, ShapeHelper.rename2(idx, id))
         }.toMap
-    clean ++ dataNew
+    oldData ++ dataNew
   }
 
   private def maybeShapeMax(group: Group, shape: Shape, id: FormComponentId, formTemplate: FormTemplate)(implicit ex: ExecutionContext): (Shape, Future[Option[RepeatingStructure]]) = {
@@ -168,8 +174,12 @@ object ShapeHelper {
     )
   }
 
-  def repeatGroup(group: Group, shape: Shape)(idx: Int): List[FormComponent] =
-    group.fields.map(copyFormComponent(_, idx))
+  def repeatGroup(group: Group, shape: Shape)(idx: Int): List[FormComponent] = {
+    if (idx == 1)
+      group.fields
+    else
+      group.fields.map(copyFormComponent(_, idx - 1))
+  }
 
   private def copyFormComponent(formComponent: FormComponent, idx: Int): FormComponent =
     formComponent.copy(
@@ -182,6 +192,15 @@ object ShapeHelper {
     val z = formComponentId.value.indexOf("_")
     val a = formComponentId.value.drop(z)
     FormComponentId(s"${int}_$a")
+  }
+
+  def rename2(int: Int, formComponentId: FormComponentId) = {
+    val z = formComponentId.value.indexOf("_")
+    val a = formComponentId.value.drop(z + 1)
+    if (int == 1)
+      FormComponentId(a)
+    else
+      FormComponentId(s"${int}_$a")
   }
 
 }
