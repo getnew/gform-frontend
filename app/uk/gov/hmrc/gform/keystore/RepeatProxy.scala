@@ -35,11 +35,17 @@ class RepeatProxy(
 
   val repeatingService = RepeatingService
 
-  def getAllSections(formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]])(implicit hc: HeaderCarrier, executionContext: ExecutionContext): Future[List[Section]] = {
-    if (isKeyStore)
+  def getAllSections(shape: Shape, formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]])(implicit hc: HeaderCarrier, executionContext: ExecutionContext): Future[List[Section]] = {
+    val sF = if (isKeyStore)
       repeatingComponentService.getAllSections(formTemplate, data)
     else
-      repeatingService.getAllSections(formTemplate, data)
+      repeatingService.getAllSections(shape, formTemplate, data)
+    sF.map {
+      case s => {
+        Logger.debug(s"getAllSections: ${s} data ${data}")
+        s
+      }
+    }
   }
 
   def getAllRepeatingGroups(shape: Shape, formTemplate: FormTemplate)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[CacheMap] = {
@@ -83,7 +89,7 @@ class RepeatProxy(
     else
       repeatingService.getRepeatingGroup(fc.id, formTemplate, shape)
     rF.map {
-      case r: RepeatingStructure => {
+      case r => {
         Logger.debug(s"repeatingStructure is ${r.toString}")
         r
       }
@@ -114,10 +120,17 @@ class RepeatProxy(
   }
 
   def getAllFieldsInGroupForSummary(formComponent: FormComponent, group: Group, formTemplate: FormTemplate, shape: Shape)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[RepeatingStructure] = {
-    if (isKeyStore)
+    val xF = if (isKeyStore)
       repeatingComponentService.getAllFieldsInGroupForSummary(formComponent, group)
     else
-      repeatingService.getRepeatingGroup(formComponent.id, formTemplate, shape).pure[Future]
+      repeatingService.getRepeatingGroupForSummary(formComponent.id, formTemplate, shape).pure[Future]
+    xF.map {
+      case r => {
+        Logger.debug(s"getAllFieldsInGroupForSummary repeatingStructure is ${r}")
+        r
+      }
+    }
+    xF
   }
 
   def clearSession(implicit hc: HeaderCarrier, ec: ExecutionContext) =

@@ -96,7 +96,7 @@ class FormController(
       _               <- repeatService.loadData(cache.form.repeatingGroupStructure)
       envelopeF       =  fileUploadService.getEnvelope(cache.form.envelopeId)
       envelope        <- envelopeF
-      dynamicSections <- repeatService.getAllSections(cache.formTemplate, fieldData)
+      dynamicSections <- repeatService.getAllSections(cache.form.shape, cache.formTemplate, fieldData)
       html            <- renderer.renderSection(cache.form, sectionNumber, fieldData, cache.formTemplate, None, envelope, cache.form.envelopeId, None, dynamicSections, formMaxAttachmentSizeMB, contentTypes, cache.retrievals, cache.form.shape, lang)
       // format: ON
     } yield Ok(html)
