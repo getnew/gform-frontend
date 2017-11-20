@@ -122,7 +122,7 @@ class SummaryController(
 
   private def validateForm(cache: AuthCacheWithForm, envelope: Envelope)(implicit hc: HeaderCarrier): Future[(ValidatedType, Map[FormComponent, FormFieldValidationResult])] = {
     val data = FormDataHelpers.formDataMap(cache.form.formData)
-    val sectionsF = repeatService.getAllSections(cache.formTemplate, data)
+    val sectionsF = repeatService.getAllSections(cache.form.shape, cache.formTemplate, data)
     val filteredSections = sectionsF.map(_.filter(x => BooleanExpr.isTrue(x.includeIf.map(_.expr).getOrElse(IsTrue), data)))
     for {// format: OFF
       sections          <- filteredSections

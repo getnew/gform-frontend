@@ -106,7 +106,7 @@ class FormController(
 
     val data = FormDataHelpers.formDataMap(cache.form.formData)
     val envelopeF = fileUploadService.getEnvelope(cache.form.envelopeId)
-    val sectionsF = repeatService.getAllSections(cache.formTemplate, data)
+    val sectionsF = repeatService.getAllSections(cache.form.shape, cache.formTemplate, data)
 
     for {// format: OFF
       envelope          <- envelopeF
@@ -161,7 +161,7 @@ class FormController(
 
     processResponseDataFromBody(request) { (data: Map[FormComponentId, Seq[String]]) =>
 
-      val sectionsF: Future[List[Section]] = repeatService.getAllSections(cache.formTemplate, data)
+      val sectionsF: Future[List[Section]] = repeatService.getAllSections(cache.form.shape, cache.formTemplate, data)
 
       val formFieldValidationResultsF: Future[Map[FormComponent, FormFieldValidationResult]] = for { // format: OFF
         sections          <- sectionsF

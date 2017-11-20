@@ -19,7 +19,7 @@ package uk.gov.hmrc.gform.services
 import play.api.libs.json.Json
 import uk.gov.hmrc.gform.Spec
 import uk.gov.hmrc.gform.keystore._
-import uk.gov.hmrc.gform.sharedmodel.ExampleData
+import uk.gov.hmrc.gform.sharedmodel.{ ExampleData, Shape }
 import uk.gov.hmrc.gform.sharedmodel.form.{ FormField, RepeatingGroup }
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
 import uk.gov.hmrc.http.cache.client.CacheMap
@@ -44,7 +44,7 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
 
     val testService = new RepeatProxy(mockRepeatingService, true)
 
-    testService.getAllSections(formTemplate, Map.empty).futureValue shouldBe List(`section - group`)
+    testService.getAllSections(Shape(Map(), Map()), formTemplate, Map.empty).futureValue shouldBe List(`section - group`)
   }
 
   it should "return no dynamically created sections when field in repeatsMax expression in repeating group and no form data" in {
@@ -61,28 +61,28 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
 
     val expectedList = List(`section - group`)
 
-    testService.getAllSections(formTemplate, Map.empty).futureValue shouldBe expectedList
+    testService.getAllSections(Shape(Map(), Map()), formTemplate, Map.empty).futureValue shouldBe expectedList
   }
 
-//  it should "return dynamically created sections when field in repeatsMax is number and no form data" in new ExampleData {
-//
-//    override def `repeating section` = super.`repeating section`.copy(repeatsMax = Some(TextExpression(FormCtx("number"))))
-//    override val formTemplate = super.formTemplate.copy(sections = List(`section - number`, `repeating section`))
-//
-//    override def `formField - number` = FormField(`fieldId - number`, "2")
-//
-//    val testSessionCacheConnector = new SessionCacheConnector(null, null, null, null) {
-//      override def fetch()(implicit hc: HeaderCarrier): Future[Option[CacheMap]] = Future.successful(None)
-//    }
-//
-//    val mockRepeatingService = new RepeatingComponentService(testSessionCacheConnector, null)
-//
-//    val testService = new RepeatProxy(mockRepeatingService, true)
-//
-//    val expectedList = List(`section - number`, ShapeHelper.copySection(`repeating section`)(1), ShapeHelper.copySection(`repeating section`)(2))
-//
-//    testService.getAllSections(formTemplate, rawDataFromBrowser).futureValue shouldBe expectedList
-//  } //Test tests are for new RepeatingService
+  //  it should "return dynamically created sections when field in repeatsMax is number and no form data" in new ExampleData {
+  //
+  //    override def `repeating section` = super.`repeating section`.copy(repeatsMax = Some(TextExpression(FormCtx("number"))))
+  //    override val formTemplate = super.formTemplate.copy(sections = List(`section - number`, `repeating section`))
+  //
+  //    override def `formField - number` = FormField(`fieldId - number`, "2")
+  //
+  //    val testSessionCacheConnector = new SessionCacheConnector(null, null, null, null) {
+  //      override def fetch()(implicit hc: HeaderCarrier): Future[Option[CacheMap]] = Future.successful(None)
+  //    }
+  //
+  //    val mockRepeatingService = new RepeatingComponentService(testSessionCacheConnector, null)
+  //
+  //    val testService = new RepeatProxy(mockRepeatingService, true)
+  //
+  //    val expectedList = List(`section - number`, ShapeHelper.copySection(`repeating section`)(1), ShapeHelper.copySection(`repeating section`)(2))
+  //
+  //    testService.getAllSections(formTemplate, rawDataFromBrowser).futureValue shouldBe expectedList
+  //  } //Test tests are for new RepeatingService
 
   /** TODO These repeating sections are multiplying on the number of elements in a group ??? is this wanted functionality **/
   it should "return dynamically created sections (title and shortName text built dynamically) when field to track in repeating group, and non-empty form data" in {
@@ -124,7 +124,7 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
 
     val formData = Map(FormComponentId("repeatingSectionDriver") -> Seq("ONE"), FormComponentId("1_repeatingSectionDriver") -> Seq("TWO"))
 
-    testService.getAllSections(formTemplate, formData).futureValue shouldBe expectedList
+    testService.getAllSections(Shape(Map(), Map()), formTemplate, formData).futureValue shouldBe expectedList
   }
 
   it should "return a dynamically created section when field to track in a NON-repeating group" in {
@@ -152,7 +152,7 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
     val formData = Map(`fieldId - firstName` -> Seq("1"))
 
     println(Json.prettyPrint(Json.toJson(formTemplate)))
-    testService.getAllSections(formTemplate, formData).futureValue shouldBe expectedList
+    testService.getAllSections(Shape(Map(), Map()), formTemplate, formData).futureValue shouldBe expectedList
   }
 
   it should "return dynamically created sections (title and shortName text built dynamically) when field to track in a NON-repeating group, with form data" in {
@@ -179,7 +179,7 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
     val formData = Map(`fieldId - firstName` -> Seq("2"))
 
     println(Json.prettyPrint(Json.toJson(formTemplate)))
-    testService.getAllSections(formTemplate, formData).futureValue shouldBe expectedList
+    testService.getAllSections(Shape(Map(), Map()), formTemplate, formData).futureValue shouldBe expectedList
   }
   /** THESE TESTS ARE WEIRD HAVE TO ASK TENOCH **/
 }

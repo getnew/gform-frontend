@@ -53,7 +53,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp with ExampleData {
 
   val mockRepeatService = new RepeatProxy(null, true) {
 
-    override def getAllSections(formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[List[Section]] = {
+    override def getAllSections(shape: Shape, formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[List[Section]] = {
       Future.successful(allSections)
     }
 
@@ -276,7 +276,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp with ExampleData {
 
     val mock2RepeatService = new RepeatProxy(null, true) {
 
-      override def getAllSections(formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[List[Section]] = {
+      override def getAllSections(shape: Shape, formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[List[Section]] = {
         Future.successful(allSections)
       }
 

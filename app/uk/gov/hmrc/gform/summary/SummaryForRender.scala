@@ -73,8 +73,9 @@ object SummaryRenderingService {
   )(implicit
     hc: HeaderCarrier,
     ec: ExecutionContext): Future[SummaryForRender] = {
+    val d = data
 
-    repeatService.getAllSections(formTemplate, data).flatMap { sections =>
+    repeatService.getAllSections(shape, formTemplate, d).flatMap { sections =>
       val fields: List[FormComponent] = sections.flatMap(repeatService.atomicFields(_, shape, formTemplate))
 
       def validate(formComponent: FormComponent): Option[FormFieldValidationResult] = {

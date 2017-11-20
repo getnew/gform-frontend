@@ -50,23 +50,35 @@ object RepeatingService {
       .find(_.id == id)
       .map(maybeRepeatGroupForSummary(_, shape)).getOrElse(Nil)
 
-  def getAllRepeatingGroups(shape: Shape, formTemplate: FormTemplate)(implicit ex: ExecutionContext): Future[CacheMap] =
+  private def generateAllRepeatingGroups(shape: Shape, formTemplate: FormTemplate) =
     CacheMap(
       "Generated",
       shape
         .groups
         .keys
         .map(id => id -> findGroup(formTemplate, id).map(x => maybeRepeatGroup(x, shape)).fold(Json.toJson(RepeatingGroup(List.empty[List[FormComponent]], false)))(x => Json.toJson(RepeatingGroup(x, true)))).toMap
-    ).pure[Future]
+    )
+
+  def getAllRepeatingGroups(shape: Shape, formTemplate: FormTemplate)(implicit ex: ExecutionContext): Future[CacheMap] =
+    generateAllRepeatingGroups(shape, formTemplate).pure[Future]
 
   def getAllSections(shape: Shape, formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]])(implicit ex: ExecutionContext): Future[List[Section]] = {
 
-    val x: List[Future[Section]] = for {
-      s <- formTemplate.sections
-      ss <- maybeRepeatSection(s, shape, formTemplate, data)
-    } yield ss
-    val xx: Future[List[Section]] = Future.sequence(x)
-    xx
+    val sections: Seq[Section] = formTemplate.sections
+    val repeatFSections: Seq[Future[Seq[Section]]] = sections.map(x => maybeRepeatSection(x, shape, formTemplate, data))
+    val repeatSectionsF: Future[Seq[Seq[Section]]] = Future.sequence(repeatFSections)
+    val sectionsF = repeatSectionsF.map(x => x.flatten.toList)
+
+    ////    val x: List[Future[Section]] = for {
+    ////      s : Section <- formTemplate.sections
+    ////      ss : Seq[Section] <- maybeRepeatSection(s, shape, formTemplate, data)
+    ////    } yield ss
+    ////    val xx: Future[List[Section]] = Future.sequence(x)
+    ////    xx
+    //
+    //    ???
+
+    sectionsF
 
   }
 
@@ -153,19 +165,15 @@ object RepeatingService {
       evaluateExpression(expr.expr, shape, formTemplate, data)
     } else {
       val groupFieldValue = repeatingGroupsFound.head
-      val fieldsInGroup = cacheMap.getEntry[RepeatingGroup](groupFieldValue.id.value).map(_.list).getOrElse(Nil).flatten
+      val cacheMap = generateAllRepeatingGroups(shape, formTemplate)
+      val fieldsInGroup: List[FormComponent] =
+        cacheMap.getEntry[RepeatingGroup](groupFieldValue.id.value).map(_.list).getOrElse(Nil).flatten
       Future.successful(fieldsInGroup.size) //TODO ask tenoch about this case
     }
   }
 
-  private def maybeRepeatSection(section: Section, shape: Shape, formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]])(implicit ec: ExecutionContext): Future[Seq[Section]] =
-    section
-      .repeatsMax
-      .fold(List(section))(expr => {
-        generateDynamicSections(expr, shape, section, formTemplate, data)
-      })
-
   private def generateDynamicSections(repeatsMax: TextExpression, shape: Shape, section: Section, formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]])(ec: ExecutionContext): Future[List[Section]] = {
+    implicit val e = ec
     val countF = getRequestedCount(repeatsMax, shape, formTemplate, data)
 
     for {
@@ -175,6 +183,21 @@ object RepeatingService {
         ShapeHelper.copySection(section)(i)
       }.toList
     }
+  }
+
+  private def maybeRepeatSection(section: Section, shape: Shape, formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]])(implicit ec: ExecutionContext): Future[Seq[Section]] = {
+    implicit val e = ec
+
+    //    section.repeatsMax match {
+    //      case Some(expr) => generateDynamicSections(expr, shape, section, formTemplate, data)(e)
+    //      case None => Future.successful(List(section))
+    //    }
+
+    section
+      .repeatsMax
+      .fold(Future.successful(List(section)))(expr =>
+        generateDynamicSections(expr, shape, section, formTemplate, data)(e))
+    //    ???
   }
 
   def getSectionFields(section: BaseSection, shape: Shape): List[FormComponent] =
