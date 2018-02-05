@@ -198,7 +198,7 @@ class BooleanExprSpec extends Spec {
     def `fieldValue - zero` = FormComponent(
       `fieldId - zero`,
       Text(Number(), Constant("0")),
-      "sample label", None, None, None, true, false, false, false, None
+      "sample label", None, None, None, true, false, false, false, false, None
     )
   }
 
