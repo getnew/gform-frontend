@@ -111,24 +111,22 @@ object BooleanExpr {
       case Constant(value) => value
       case UserCtx(_) => retrievals.affinityGroupName
 
-      //      case Add(field1, field2) => {
-      //          val y = prepopData(field1, formTemplate, retrievals, data)
-      //          val z = prepopData(field2, formTemplate, retrievals, data)
-      //          (toBigDecimal(y) + toBigDecimal(z)).toString()
-      //        }
+      case Add(field1, field2) => {
+        val y = prepopData(field1, retrievals, data)
+        val z = prepopData(field2, retrievals, data)
+        (toBigDecimal(y) + toBigDecimal(z)).toString()
+      }
 
-      //     case Subtraction(field1, field2) =>
-      //        val value = for {
-      //          y <- prepopData(field1, formTemplate, retrievals, data, section)
-      //          z <- prepopData(field2, formTemplate, retrievals, data, section)
-      //        } yield toBigDecimal(y) - toBigDecimal(z)
-      //        value.map(x => round(x).toString)
-      //      case Multiply(field1, field2) =>
-      //        val value = for {
-      //          y <- prepopData(field1, formTemplate, retrievals, data, section)
-      //          z <- prepopData(field2, formTemplate, retrievals, data, section)
-      //        } yield toBigDecimal(y) * toBigDecimal(z)
-      //        value.map(x => round(x).toString)
+      case Subtraction(field1, field2) =>
+        val y = prepopData(field1, retrievals, data)
+        val z = prepopData(field2, retrievals, data)
+        (toBigDecimal(y) - toBigDecimal(z)).toString()
+
+      case Multiply(field1, field2) =>
+        val y = prepopData(field1, retrievals, data)
+        val z = prepopData(field2, retrievals, data)
+        (toBigDecimal(y) * toBigDecimal(z)).toString()
+
       //      case Sum(FormCtx(field)) =>
       //        val atomicFields = repeatingComponentService.atomicFields(section)
       //        val cacheMap: Future[CacheMap] = repeatingComponentService.getAllRepeatingGroups
