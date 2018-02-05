@@ -42,8 +42,9 @@ object BooleanExpr {
     def getField(id: String): String = FormDataHelpers.get(data, FormComponentId(id)).headOption.getOrElse("")
 
     expr match {
-      case Equals(FormCtx(fieldId), Constant(value)) => equals(getField(fieldId), value)
-      case Equals(UserCtx(_), Constant(value)) => equals(retrievals.affinityGroupName, value)
+      case Equals(field1, field2) => equals(prepopData(field1, retrievals, data), prepopData(field2, retrievals, data))
+      //      case Equals(FormCtx(fieldId), Constant(value)) => equals(getField(fieldId), value)
+      //      case Equals(UserCtx(_), Constant(value)) => equals(retrievals.affinityGroupName, value)
       case GreaterThan(FormCtx(fieldId), Constant(value)) => greaterThan(getField(fieldId), value)
       case GreaterThan(UserCtx(_), Constant(value)) => greaterThan(retrievals.affinityGroupName, value)
       case GreaterThanOrEquals(FormCtx(fieldId), Constant(value)) => greaterThanOrEquals(getField(fieldId), value)
@@ -91,6 +92,53 @@ object BooleanExpr {
     (toMaybeBigDecimal(left), toMaybeBigDecimal(right), left, right) match {
       case (Some(l), Some(r), _, _) => (l <= r)
       case (_, _, l, r) => (l <= r)
+    }
+  }
+
+  def prepopData(expr: Expr, retrievals: Retrievals, data: Map[FormComponentId, Seq[String]]): String = {
+
+    def toBigDecimal(str: String): BigDecimal =
+      Try(BigDecimal(str.replace(",", ""))) match {
+        case Success(x) => x
+        case Failure(_) => BigDecimal(0)
+      }
+
+    expr match {
+      case Constant(value) => value
+      case UserCtx(_) => retrievals.affinityGroupName
+
+      //      case Add(field1, field2) => {
+      //          val y = prepopData(field1, formTemplate, retrievals, data)
+      //          val z = prepopData(field2, formTemplate, retrievals, data)
+      //          (toBigDecimal(y) + toBigDecimal(z)).toString()
+      //        }
+
+      //     case Subtraction(field1, field2) =>
+      //        val value = for {
+      //          y <- prepopData(field1, formTemplate, retrievals, data, section)
+      //          z <- prepopData(field2, formTemplate, retrievals, data, section)
+      //        } yield toBigDecimal(y) - toBigDecimal(z)
+      //        value.map(x => round(x).toString)
+      //      case Multiply(field1, field2) =>
+      //        val value = for {
+      //          y <- prepopData(field1, formTemplate, retrievals, data, section)
+      //          z <- prepopData(field2, formTemplate, retrievals, data, section)
+      //        } yield toBigDecimal(y) * toBigDecimal(z)
+      //        value.map(x => round(x).toString)
+      //      case Sum(FormCtx(field)) =>
+      //        val atomicFields = repeatingComponentService.atomicFields(section)
+      //        val cacheMap: Future[CacheMap] = repeatingComponentService.getAllRepeatingGroups
+      //        val repeatingSections: Future[List[List[List[FormComponent]]]] = Future.sequence(atomicFields.map(fv => (fv.id, fv.`type`)).collect {
+      //          case (fieldId, group: Group) => cacheMap.map(_.getEntry[RepeatingGroup](fieldId.value).map(_.list).getOrElse(Nil))
+      //        })
+      //        val listOfValues = Group.getGroup(repeatingSections, FormComponentId(field)).map(z =>
+      //          for {
+      //            id <- z
+      //            x = data.get(id).map(_.head).getOrElse("")
+      //          } yield toBigDecimal(x))
+      //        for { vs <- listOfValues } yield round(vs.sum).toString()
+      case id: FormCtx => data.get(id.toFieldId).map(_.head).getOrElse("")
+      case _ => ""
     }
   }
 
