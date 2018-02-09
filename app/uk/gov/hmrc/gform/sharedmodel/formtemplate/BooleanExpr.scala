@@ -47,16 +47,6 @@ object BooleanExpr {
       case GreaterThanOrEquals(field1, field2) => greaterThanOrEquals(prepopData(field1, retrievals, data), prepopData(field2, retrievals, data))
       case LessThan(field1, field2) => lessThan(prepopData(field1, retrievals, data), prepopData(field2, retrievals, data))
       case LessThanOrEquals(field1, field2) => lessThanOrEquals(prepopData(field1, retrievals, data), prepopData(field2, retrievals, data))
-      //      case Equals(FormCtx(fieldId), Constant(value)) => equals(getField(fieldId), value)
-      //      case Equals(UserCtx(_), Constant(value)) => equals(retrievals.affinityGroupName, value)
-      //      case GreaterThan(FormCtx(fieldId), Constant(value)) => greaterThan(getField(fieldId), value)
-      //      case GreaterThan(UserCtx(_), Constant(value)) => greaterThan(retrievals.affinityGroupName, value)
-      //      case GreaterThanOrEquals(FormCtx(fieldId), Constant(value)) => greaterThanOrEquals(getField(fieldId), value)
-      //      case GreaterThanOrEquals(UserCtx(_), Constant(value)) => greaterThanOrEquals(retrievals.affinityGroupName, value)
-      //      case LessThan(FormCtx(fieldId), Constant(value)) => lessThan(getField(fieldId), value)
-      //      case LessThan(UserCtx(_), Constant(value)) => lessThan(retrievals.affinityGroupName, value)
-      //      case LessThanOrEquals(FormCtx(fieldId), Constant(value)) => lessThanOrEquals(getField(fieldId), value)
-      //      case LessThanOrEquals(UserCtx(_), Constant(value)) => lessThanOrEquals(retrievals.affinityGroupName, value)
       case Or(expr1, expr2) => isTrue(expr1, data, retrievals) | isTrue(expr2, data, retrievals)
       case And(expr1, expr2) => isTrue(expr1, data, retrievals) & isTrue(expr2, data, retrievals)
       case IsTrue => true
@@ -127,18 +117,6 @@ object BooleanExpr {
         val z = prepopData(field2, retrievals, data)
         (toBigDecimal(y) * toBigDecimal(z)).toString()
 
-      //      case Sum(FormCtx(field)) =>
-      //        val atomicFields = repeatingComponentService.atomicFields(section)
-      //        val cacheMap: Future[CacheMap] = repeatingComponentService.getAllRepeatingGroups
-      //        val repeatingSections: Future[List[List[List[FormComponent]]]] = Future.sequence(atomicFields.map(fv => (fv.id, fv.`type`)).collect {
-      //          case (fieldId, group: Group) => cacheMap.map(_.getEntry[RepeatingGroup](fieldId.value).map(_.list).getOrElse(Nil))
-      //        })
-      //        val listOfValues = Group.getGroup(repeatingSections, FormComponentId(field)).map(z =>
-      //          for {
-      //            id <- z
-      //            x = data.get(id).map(_.head).getOrElse("")
-      //          } yield toBigDecimal(x))
-      //        for { vs <- listOfValues } yield round(vs.sum).toString()
       case id: FormCtx => data.get(id.toFieldId).map(_.head).getOrElse("")
       case _ => ""
     }
