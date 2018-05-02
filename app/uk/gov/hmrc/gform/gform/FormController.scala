@@ -37,6 +37,7 @@ import uk.gov.hmrc.play.frontend.controller.FrontendController
 
 import scala.concurrent.Future
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.cache.client.CacheMap
 
 class FormController(
     appConfig: AppConfig,
@@ -88,8 +89,9 @@ class FormController(
       _               <- repeatService.loadData(cache.form.repeatingGroupStructure)
       envelopeF       =  fileUploadService.getEnvelope(cache.form.envelopeId)
       envelope        <- envelopeF
-      dynamicSections <- repeatService.getAllSections(cache.formTemplate, fieldData)
-      html            <- renderer.renderSection(cache.form, sectionNumber, fieldData, cache.formTemplate, None, envelope, cache.form.envelopeId, None, dynamicSections, formMaxAttachmentSizeMB, contentTypes, cache.retrievals, lang)
+      repeatCache     = repeatService.getCache
+      dynamicSections <- repeatService.getAllSections(cache.formTemplate, fieldData, repeatCache)
+      html            <- renderer.renderSection(cache.form, sectionNumber, fieldData, cache.formTemplate, None, envelope, cache.form.envelopeId, None, dynamicSections, repeatCache, formMaxAttachmentSizeMB, contentTypes, cache.retrievals, lang)
       // format: ON
     } yield Ok(html)
   }
@@ -98,7 +100,8 @@ class FormController(
 
     val data = FormDataHelpers.formDataMap(cache.form.formData)
     val envelopeF = fileUploadService.getEnvelope(cache.form.envelopeId)
-    val sectionsF = repeatService.getAllSections(cache.formTemplate, data)
+    val repeatCache = repeatService.getCache
+    val sectionsF = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
 
     for {// format: OFF
       envelope          <- envelopeF
@@ -108,7 +111,7 @@ class FormController(
       allFields         =  sections.flatMap(repeatService.atomicFields)
       v                 <- validationService.validateForm(sectionFields, section, cache.form.envelopeId, cache.retrievals)(data)
       errors            = validationService.evaluateValidation(v, allFields, data, envelope)
-      html              <- renderer.renderSection(cache.form, sectionNumber, data, cache.formTemplate, Some(errors), envelope, cache.form.envelopeId, Some(v), sections, formMaxAttachmentSizeMB, contentTypes, cache.retrievals, lang)
+      html              <- renderer.renderSection(cache.form, sectionNumber, data, cache.formTemplate, Some(errors), envelope, cache.form.envelopeId, Some(v), sections, repeatCache, formMaxAttachmentSizeMB, contentTypes, cache.retrievals, lang)
       // format: ON
     } yield Ok(html)
   }
@@ -156,7 +159,8 @@ class FormController(
 
     processResponseDataFromBody(request) { (data: Map[FormComponentId, Seq[String]]) =>
 
-      val sectionsF = repeatService.getAllSections(cache.formTemplate, data)
+      val repeatCache = repeatService.getCache
+      val sectionsF = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
 
       val formFieldValidationResultsF: Future[Map[FormComponent, FormFieldValidationResult]] = for { // format: OFF
         sections          <- sectionsF
@@ -235,10 +239,10 @@ class FormController(
       def anchor(optCompList: Option[List[List[FormComponent]]]) =
         optCompList.map(list => s"#${list.last.head.id}").getOrElse("")
 
-      def processRemoveGroup(idx: Int, groupId: String): Future[Result] = for {
+      def processRemoveGroup(idx: Int, groupId: String, repeatCache: Future[Option[CacheMap]]): Future[Result] = for {
         dynamicSections <- sectionsF
         updatedData <- repeatService.removeGroup(idx, groupId, data)
-        repeatingGroups <- repeatService.getAllRepeatingGroups
+        repeatingGroups <- repeatService.getAllRepeatingGroups(repeatCache)
         optCompList = repeatingGroups.getEntry[RepeatingGroup](groupId)
         envelope <- envelopeF
         section = dynamicSections(sectionNumber.value)
@@ -269,7 +273,7 @@ class FormController(
         case SaveAndSummary                 => processSaveAndSummary(userId, cache.form)
         case BackToSummary                  => processSaveAndSummary(userId, cache.form)
         case AddGroup(groupId)              => processAddGroup(groupId)
-        case RemoveGroup(idx, groupId)      => processRemoveGroup(idx, groupId)
+        case RemoveGroup(idx, groupId)      => processRemoveGroup(idx, groupId, repeatCache)
         // format: ON
       }
 

@@ -50,6 +50,7 @@ object SummaryRenderingService {
     retrievals: Retrievals,
     formId: FormId,
     repeatService: RepeatingComponentService,
+    repeatCache: Future[Option[CacheMap]],
     envelope: Envelope,
     lang: Option[String],
     frontendAppConfig: FrontendAppConfig
@@ -58,7 +59,7 @@ object SummaryRenderingService {
     messages: Messages,
     hc: HeaderCarrier,
     ec: ExecutionContext): Future[Html] = {
-    summaryForRender(validatedType, formFields, retrievals, formId, formTemplate, repeatService, envelope, lang)
+    summaryForRender(validatedType, formFields, retrievals, formId, formTemplate, repeatService, repeatCache, envelope, lang)
       .map(s => summary(formTemplate, s, formId, formTemplate.formCategory.getOrElse(Default), lang, frontendAppConfig))
   }
 
@@ -69,13 +70,16 @@ object SummaryRenderingService {
     formId: FormId,
     formTemplate: FormTemplate,
     repeatService: RepeatingComponentService,
+    repeatCache: Future[Option[CacheMap]],
     envelope: Envelope,
     lang: Option[String]
   )(implicit
     hc: HeaderCarrier,
     ec: ExecutionContext): Future[SummaryForRender] = {
 
-    repeatService.getAllSections(formTemplate, data).flatMap { sections =>
+    val repeatCache = repeatService.getCache
+
+    repeatService.getAllSections(formTemplate, data, repeatCache).flatMap { sections =>
       val fields: List[FormComponent] = sections.flatMap(repeatService.atomicFields)
 
       def validate(formComponent: FormComponent): Option[FormFieldValidationResult] = {
@@ -160,7 +164,7 @@ object SummaryRenderingService {
               .map(z => x :: z)
         }).map(x => x.flatten) //TODO ask a better way to do this.
       }
-      val cacheMap: Future[CacheMap] = repeatService.getAllRepeatingGroups
+      val cacheMap: Future[CacheMap] = repeatService.getAllRepeatingGroups(repeatCache)
       val repeatingGroups: Future[List[List[List[FormComponent]]]] = Future.sequence(sections.flatMap(_.fields).map(fv => (fv.id, fv.`type`)).collect {
         case (fieldId, group: Group) => cacheMap.map(_.getEntry[RepeatingGroup](fieldId.value).map(_.list).getOrElse(Nil))
       })

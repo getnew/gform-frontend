@@ -56,7 +56,7 @@ class DeclarationController(
 
   def showDeclaration(formId: FormId, formTemplateId4Ga: FormTemplateId, lang: Option[String]) = auth.async(formId) { implicit request => cache =>
     cache.form.status match {
-      case Validated => renderer.renderDeclarationSection(cache.form, cache.formTemplate, cache.retrievals, None, Map.empty, None, lang).map(Ok(_))
+      case Validated => renderer.renderDeclarationSection(cache.form, cache.formTemplate, cache.retrievals, None, Map.empty, None, repeatService.getCache, lang).map(Ok(_))
       case _ => Future.successful(BadRequest)
     }
   }
@@ -112,7 +112,7 @@ class DeclarationController(
             for {
               _ <- gformConnector.updateUserData(cache.form._id, UserData(updatedForm.formData, None, Signed))
               //todo perhaps not make these calls at all if the feature flag is false?
-              summaryHml <- summaryController.getSummaryHTML(formId, cache, lang)
+              summaryHml <- summaryController.getSummaryHTML(formId, cache, repeatService.getCache, lang)
               cleanHtml = pdfService.sanitiseHtmlForPDF(summaryHml)
               htmlForPDF = addExtraDataToHTML(cleanHtml, cache.formTemplate.authConfig, cache.formTemplate.submissionReference, cache.retrievals, data)
               _ <- if (config.sendPdfWithSubmission) gformConnector.submitFormWithPdf(formId, customerId, htmlForPDF) else { gformConnector.submitForm(formId, customerId) }
@@ -124,7 +124,7 @@ class DeclarationController(
           case validationResult @ Invalid(_) =>
             val errorMap: List[(FormComponent, FormFieldValidationResult)] = getErrorMap(validationResult, data, cache.formTemplate)
             for {
-              html <- renderer.renderDeclarationSection(cache.form, cache.formTemplate, cache.retrievals, Some(validationResult), data, Some(errorMap), lang)
+              html <- renderer.renderDeclarationSection(cache.form, cache.formTemplate, cache.retrievals, Some(validationResult), data, Some(errorMap), repeatService.getCache, lang)
             } yield Ok(html)
         }
         case _ =>
