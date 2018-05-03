@@ -49,7 +49,9 @@ class PrepopServiceSpec extends Spec with ExampleData {
   }
 
   val mockRepeatingGroupService = new RepeatingComponentService(null, null) {
-    override def atomicFields(section: BaseSection)(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] =
+    override def getCache(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Option[CacheMap]] = Future.successful(None)
+
+    override def atomicFields(section: BaseSection, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] =
       `section - about you`.fields
 
     override def getAllRepeatingGroups(repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[CacheMap] =

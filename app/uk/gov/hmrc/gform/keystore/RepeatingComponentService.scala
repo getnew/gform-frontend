@@ -37,8 +37,6 @@ class RepeatingComponentService(
   }
 
   def getAllSections(formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]], cache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[List[Section]] = {
-    val x = 0
-    val xx = x
     cache.flatMap { maybeCacheMap =>
       val groupCache = maybeCacheMap.getOrElse(CacheMap("Empty", Map.empty))
       Future.sequence(formTemplate.sections.map { section =>
@@ -52,9 +50,7 @@ class RepeatingComponentService(
   }
 
   def getAllRepeatingGroups(cache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[CacheMap] = {
-    val x = 0
-    val xx = x
-    sessionCache.fetch().map {
+    cache.map {
       case Some(cacheMap) => cacheMap
       case None => CacheMap("empty", Map.empty)
     }
@@ -259,7 +255,6 @@ class RepeatingComponentService(
 
     def emptyCase(dynamicList: List[List[FormComponent]]): Map[FormComponentId, Seq[String]] = dynamicList match {
       case h :: Nil =>
-
         sessionCache.cache(groupId, newListM(Nil, dynamicList))
         data
       case list =>
@@ -267,6 +262,7 @@ class RepeatingComponentService(
         sessionCache.cache[RepeatingGroup](groupId, newListM(newList, dynamicList))
         newData
     }
+
     for {
       dynamicListOpt <- sessionCache.fetchAndGetEntry[RepeatingGroup](groupId)
       dynamicList = dynamicListOpt.map(_.list).getOrElse(Nil)
@@ -274,8 +270,8 @@ class RepeatingComponentService(
     } yield newData
   }
 
-  def getData()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Option[RepeatingGroupStructure]] =
-    sessionCache.fetch().map(
+  def getData(cache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Option[RepeatingGroupStructure]] =
+    cache.map(
       _.fold[Option[RepeatingGroupStructure]](None)(x => Some(RepeatingGroupStructure(x.data)))
     )
 
@@ -341,11 +337,15 @@ class RepeatingComponentService(
     }
   }
 
-  def getRepeatingGroupsForRendering(topFieldValue: FormComponent, groupField: Group)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[(List[List[FormComponent]], Boolean)] = {
-    sessionCache.fetchAndGetEntry[RepeatingGroup](topFieldValue.id.value).flatMap {
-      case Some(dynamicList) if dynamicList.render =>
-        Future.successful((dynamicList.list, isRepeatsMaxReached(dynamicList.list.size, groupField)))
-      case Some(dynamicList) => Future.successful(Nil, false)
+  def getRepeatingGroupsForRendering(topFieldValue: FormComponent, groupField: Group, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[(List[List[FormComponent]], Boolean)] = {
+    repeatCache.flatMap {
+      case Some(cacheMap) =>
+        cacheMap.getEntry[RepeatingGroup](topFieldValue.id.value) match {
+          case Some(dynamicList) if dynamicList.render =>
+            Future.successful((dynamicList.list, isRepeatsMaxReached(dynamicList.list.size, groupField)))
+          case Some(dynamicList) => Future.successful(Nil, false)
+          case None => initialiseDynamicGroupList(topFieldValue, groupField)
+        }
       case None => initialiseDynamicGroupList(topFieldValue, groupField)
     }
   }
@@ -374,27 +374,35 @@ class RepeatingComponentService(
     }
   }
 
-  def getAllFieldsInGroup(topFieldValue: FormComponent, groupField: Group)(implicit hc: HeaderCarrier, ec: ExecutionContext): List[List[FormComponent]] = {
-    val resultOpt = Await.result(sessionCache.fetchAndGetEntry[RepeatingGroup](topFieldValue.id.value), configModule.timeOut seconds)
+  def getAllFieldsInGroup(topFieldValue: FormComponent, groupField: Group, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): List[List[FormComponent]] = {
+    val eventualMaybeGroup = repeatCache.flatMap {
+      case Some(cacheMap) =>
+        Future.successful(cacheMap.getEntry[RepeatingGroup](topFieldValue.id.value))
+    }
+    // TODO Await() must be eliminated
+    val resultOpt = Await.result(eventualMaybeGroup, configModule.timeOut seconds)
+    //    val resultOpt = Await.result(sessionCache.fetchAndGetEntry[RepeatingGroup](topFieldValue.id.value), configModule.timeOut seconds)
     resultOpt.map(_.list).getOrElse(List(groupField.fields))
   }
 
-  def getAllFieldsInGroupForSummary(topFieldValue: FormComponent, groupField: Group)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[List[List[FormComponent]]] = {
-    sessionCache.fetchAndGetEntry[RepeatingGroup](topFieldValue.id.value).map(resultOpt =>
-      buildGroupFieldsLabelsForSummary(
-        resultOpt.fold[List[List[FormComponent]]](List(groupField.fields))(x => if (x.render) x.list else List(groupField.fields)), topFieldValue
-      ))
+  def getAllFieldsInGroupForSummary(topFieldValue: FormComponent, groupField: Group, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[List[List[FormComponent]]] = {
+    repeatCache.flatMap {
+      case Some(cacheMap) =>
+        Future.successful(buildGroupFieldsLabelsForSummary(
+          cacheMap.getEntry[RepeatingGroup](topFieldValue.id.value).fold[List[List[FormComponent]]](List(groupField.fields))(x => if (x.render) x.list else List(groupField.fields)), topFieldValue
+        ))
+    }
   }
 
   def clearSession(implicit hc: HeaderCarrier, ec: ExecutionContext) = sessionCache.remove()
 
-  def atomicFields(section: BaseSection)(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
+  def atomicFields(section: BaseSection, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
     def atomicFields(fields: List[FormComponent]): List[FormComponent] = {
       fields.flatMap {
         case (fv: FormComponent) => fv.`type` match {
           case groupField @ Group(_, _, _, _, _, _) => section match {
             case Section(_, _, _, _, _, _, _, _, _) => atomicFields {
-              val fields = getAllFieldsInGroup(fv, groupField)
+              val fields = getAllFieldsInGroup(fv, groupField, repeatCache)
               val first = fields.head.map { nv =>
                 nv.copy(
                   shortName = LabelHelper.buildRepeatingLabel(nv.shortName, 1),

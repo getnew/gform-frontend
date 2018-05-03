@@ -63,11 +63,11 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
     override def getAllRepeatingGroups(cache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[CacheMap] =
       Future.successful(CacheMap("EMPTY", Map.empty[String, JsValue]))
 
-    override def atomicFields(section: BaseSection)(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
+    override def atomicFields(section: BaseSection, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
       section.fields
     }
 
-    override def getRepeatingGroupsForRendering(topFieldValue: FormComponent, groupField: Group)(implicit hc: HeaderCarrier, ec: ExecutionContext) = {
+    override def getRepeatingGroupsForRendering(topFieldValue: FormComponent, groupField: Group, cache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext) = {
       Future.successful((List(groupField.fields), false))
     }
   }
@@ -336,11 +336,11 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
       override def getAllRepeatingGroups(cache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[CacheMap] =
         Future.successful(CacheMap("EMPTY", Map.empty[String, JsValue]))
 
-      override def atomicFields(section: BaseSection)(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
+      override def atomicFields(section: BaseSection, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
         section.fields
       }
 
-      override def getRepeatingGroupsForRendering(topFieldValue: FormComponent, groupField: Group)(implicit hc: HeaderCarrier, ec: ExecutionContext) = {
+      override def getRepeatingGroupsForRendering(topFieldValue: FormComponent, groupField: Group, cache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext) = {
         Future.successful((List(groupField.fields, groupField.fields), true))
       }
     }

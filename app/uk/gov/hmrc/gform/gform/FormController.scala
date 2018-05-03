@@ -107,8 +107,8 @@ class FormController(
       envelope          <- envelopeF
       sections          <- sectionsF
       section           = sections(sectionNumber.value)
-      sectionFields     = repeatService.atomicFields(section)
-      allFields         =  sections.flatMap(repeatService.atomicFields)
+      sectionFields     = repeatService.atomicFields(section, repeatCache)
+      allFields         =  sections.flatMap(x => repeatService.atomicFields(x, repeatCache))
       v                 <- validationService.validateForm(sectionFields, section, cache.form.envelopeId, cache.retrievals)(data)
       errors            = validationService.evaluateValidation(v, allFields, data, envelope)
       html              <- renderer.renderSection(cache.form, sectionNumber, data, cache.formTemplate, Some(errors), envelope, cache.form.envelopeId, Some(v), sections, repeatCache, formMaxAttachmentSizeMB, contentTypes, cache.retrievals, lang)
@@ -166,8 +166,8 @@ class FormController(
         sections          <- sectionsF
         envelope          <- envelopeF
         section           = sections(sectionNumber.value)
-        sectionFields     = repeatService.atomicFields(section)
-        allFields         = sections.flatMap(repeatService.atomicFields)
+        sectionFields     = repeatService.atomicFields(section, repeatCache)
+        allFields         = sections.flatMap(x => repeatService.atomicFields(x, repeatCache))
         v                 <- validationService.validateForm(sectionFields, section, cache.form.envelopeId,  cache.retrievals)(data)
         errors            = validationService.evaluateValidation(v, allFields, data, envelope)
       // format: OFF
@@ -180,7 +180,7 @@ class FormController(
       def processSaveAndContinue(userId: UserId, form: Form, nextPage: Result)(implicit hc: HeaderCarrier): Future[Result] =
         for {
           formData <- formDataF
-          keystore <- repeatService.getData()
+          keystore <- repeatService.getData(repeatCache)
           section <- sectionsF
           userData = UserData(formData, keystore, InProgress)
           _ <- gformConnector.updateUserData(formId, userData)
@@ -192,7 +192,7 @@ class FormController(
           for {
             // format: OFF
             formData      <- formDataF
-            keystore      <- repeatService.getData()
+            keystore      <- repeatService.getData(repeatCache)
             section       <- sectionsF
             userData      = UserData(formData, keystore, Summary)
             _             <- gformConnector.updateUserData(formId, userData)
@@ -207,7 +207,7 @@ class FormController(
 
         for {
           section <- sectionsF
-          keystore <- repeatService.getData()
+          keystore <- repeatService.getData(repeatCache)
           formData <- formDataF
           userData = UserData(formData, keystore, InProgress)
 
@@ -218,7 +218,7 @@ class FormController(
       def processBack(userId: UserId, form: Form)(continue: Future[Result]): Future[Result] = {
 
         for {
-          keystore <- repeatService.getData()
+          keystore <- repeatService.getData(repeatCache)
           formData <- formDataF
           userData = UserData(formData, keystore, InProgress)
           result <- gformConnector.updateUserData(formId, userData).flatMap(response => continue)
@@ -229,7 +229,7 @@ class FormController(
         //format OFF
         optCompList <- repeatService.appendNewGroup(groupId)
         dynamicSections <- sectionsF
-        keystore <- repeatService.getData()
+        keystore <- repeatService.getData(repeatCache)
         formData <- formDataF
         userData = UserData(formData, keystore, InProgress)
         _ <- gformConnector.updateUserData(formId, userData)
@@ -246,12 +246,12 @@ class FormController(
         optCompList = repeatingGroups.getEntry[RepeatingGroup](groupId)
         envelope <- envelopeF
         section = dynamicSections(sectionNumber.value)
-        allFields = dynamicSections.flatMap(repeatService.atomicFields)
-        sectionFields = repeatService.atomicFields(section)
+        allFields = dynamicSections.flatMap(x => repeatService.atomicFields(x, repeatCache))
+        sectionFields = repeatService.atomicFields(section, repeatCache)
         v <- validationService.validateForm(sectionFields, section, cache.form.envelopeId, cache.retrievals)(updatedData)
         errors = validationService.evaluateValidation(v, allFields, updatedData, envelope).toMap
         formData = FormData(errors.values.toSeq.flatMap(_.toFormField))
-        keystore <- repeatService.getData()
+        keystore <- repeatService.getData(repeatCache)
         userData = UserData(formData, keystore, InProgress)
         _ <- gformConnector.updateUserData(formId, userData)
       } yield Redirect(routes.FormController.form(formId, cache.formTemplate._id, sectionNumber, dynamicSections.size, lang).url + anchor(optCompList.map(_.list)))

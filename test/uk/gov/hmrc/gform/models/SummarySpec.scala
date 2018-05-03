@@ -52,6 +52,8 @@ class SummarySpec extends Spec {
     override def formTemplate = super.formTemplate.copy(sections = List(section0, section1, section2))
 
     val mockRepeatService = new RepeatingComponentService(null, null) {
+      override def getCache(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Option[CacheMap]] = Future.successful(None)
+
       override def getAllSections(formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]], cache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[List[Section]] = {
         Future.successful(formTemplate.sections)
       }
@@ -59,15 +61,15 @@ class SummarySpec extends Spec {
       override def getAllRepeatingGroups(cache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[CacheMap] =
         Future.successful(CacheMap("Empty", Map.empty[String, JsValue]))
 
-      override def getAllFieldsInGroupForSummary(topFieldValue: FormComponent, groupField: Group)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[List[List[FormComponent]]] = {
+      override def getAllFieldsInGroupForSummary(topFieldValue: FormComponent, groupField: Group, cache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[List[List[FormComponent]]] = {
         Future.successful(List[List[FormComponent]]())
       }
 
-      override def getAllFieldsInGroup(topFieldValue: FormComponent, groupField: Group)(implicit hc: HeaderCarrier, ec: ExecutionContext): List[List[FormComponent]] = {
+      override def getAllFieldsInGroup(topFieldValue: FormComponent, groupField: Group, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): List[List[FormComponent]] = {
         List.empty[List[FormComponent]]
       }
 
-      override def atomicFields(section: BaseSection)(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
+      override def atomicFields(section: BaseSection, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
         section.fields
       }
     }
