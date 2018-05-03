@@ -378,6 +378,7 @@ class RepeatingComponentService(
     val eventualMaybeGroup = repeatCache.flatMap {
       case Some(cacheMap) =>
         Future.successful(cacheMap.getEntry[RepeatingGroup](topFieldValue.id.value))
+      case _ => Future.successful(None)
     }
     // TODO Await() must be eliminated
     val resultOpt = Await.result(eventualMaybeGroup, configModule.timeOut seconds)
