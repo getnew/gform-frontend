@@ -80,7 +80,7 @@ object SummaryRenderingService {
     val repeatCache = repeatService.getCache
 
     repeatService.getAllSections(formTemplate, data, repeatCache).flatMap { sections =>
-      val fields: List[FormComponent] = sections.flatMap(x => repeatService.atomicFields(x, repeatCache))
+      val fields: List[FormComponent] = sections.flatMap(repeatService.atomicFields(repeatCache))
 
       def validate(formComponent: FormComponent): Option[FormFieldValidationResult] = {
         val gformErrors = validatedType match {

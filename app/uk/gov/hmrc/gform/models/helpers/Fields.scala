@@ -148,6 +148,6 @@ object Fields {
       .filterNot(_ == currentSection) :+ currentSection.copy(fields = renderFields)
 
     renderList
-      .flatMap(x => repeatingComponentService.atomicFields(x, repeatCache))
+      .flatMap(repeatingComponentService.atomicFields(repeatCache))
   }
 }

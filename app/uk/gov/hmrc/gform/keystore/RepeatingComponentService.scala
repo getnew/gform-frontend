@@ -396,7 +396,7 @@ class RepeatingComponentService(
 
   def clearSession(implicit hc: HeaderCarrier, ec: ExecutionContext) = sessionCache.remove()
 
-  def atomicFields(section: BaseSection, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
+  def atomicFields(repeatCache: Future[Option[CacheMap]])(section: BaseSection)(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
     def atomicFields(fields: List[FormComponent]): List[FormComponent] = {
       fields.flatMap {
         case (fv: FormComponent) => fv.`type` match {

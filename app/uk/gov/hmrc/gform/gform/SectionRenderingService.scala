@@ -100,7 +100,7 @@ class SectionRenderingService(
     for {
       snippetsForFields <- Future.sequence(section.fields.map(fieldValue => htmlFor(fieldValue, formTemplate._id, 0, ei, dynamicSections.size, validatedType, repeatCache, lang,
         fieldValue.onlyShowOnSummary)))
-      javascript <- createJavascript(dynamicSections.flatMap(_.fields), dynamicSections.flatMap(x => repeatService.atomicFields(x, repeatCache)), repeatCache)
+      javascript <- createJavascript(dynamicSections.flatMap(_.fields), dynamicSections.flatMap(repeatService.atomicFields(repeatCache)), repeatCache)
       hiddenTemplateFields = Fields.getFields(section, dynamicSections, repeatService, repeatCache)
       hiddenSnippets = Fields.toFormField(fieldData, hiddenTemplateFields).map(formField => html.form.snippets.hidden_field(formField))
       pageLevelErrorHtml = generatePageLevelErrorHtml(listResult)
@@ -422,7 +422,7 @@ class SectionRenderingService(
     }
     val section = ei.dynamicSections(ei.sectionNumber.value)
     lazy val okF: FormComponent => Option[FormFieldValidationResult] =
-      Fields.getValidationResult(ei.fieldData, repeatService.atomicFields(section, repeatCache), ei.envelope, gformErrors)
+      Fields.getValidationResult(ei.fieldData, repeatService.atomicFields(repeatCache)(section), ei.envelope, gformErrors)
     okF(fieldValue)
   }
 

@@ -69,7 +69,7 @@ class SummarySpec extends Spec {
         List.empty[List[FormComponent]]
       }
 
-      override def atomicFields(section: BaseSection, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
+      override def atomicFields(repeatCache: Future[Option[CacheMap]])(section: BaseSection)(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
         section.fields
       }
     }

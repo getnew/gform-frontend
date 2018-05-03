@@ -128,7 +128,7 @@ class SummaryController(
     val filteredSections = sectionsF.map(_.filter(x => BooleanExpr.isTrue(x.includeIf.map(_.expr).getOrElse(IsTrue), data, retrievals)))
     for {// format: OFF
       sections          <- filteredSections
-      allFields         =  sections.flatMap(x => repeatService.atomicFields(x, repeatCache))
+      allFields         =  sections.flatMap(repeatService.atomicFields(repeatCache))
       v1                <- sections.map(x => validationService.validateForm(allFields, x, cache.form.envelopeId, retrievals)(data)).sequenceU.map(Monoid[ValidatedType].combineAll)
       v                 =  Monoid.combine(
                              v1,

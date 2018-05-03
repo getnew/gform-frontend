@@ -63,7 +63,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
     override def getAllRepeatingGroups(cache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[CacheMap] =
       Future.successful(CacheMap("EMPTY", Map.empty[String, JsValue]))
 
-    override def atomicFields(section: BaseSection, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
+    override def atomicFields(repeatCache: Future[Option[CacheMap]])(section: BaseSection)(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
       section.fields
     }
 
@@ -336,7 +336,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
       override def getAllRepeatingGroups(cache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[CacheMap] =
         Future.successful(CacheMap("EMPTY", Map.empty[String, JsValue]))
 
-      override def atomicFields(section: BaseSection, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
+      override def atomicFields(repeatCache: Future[Option[CacheMap]])(section: BaseSection)(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
         section.fields
       }
 
