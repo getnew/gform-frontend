@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.gform.keystore
 
+import play.api.libs.json.Reads
 import uk.gov.hmrc.gform.config.ConfigModule
 import uk.gov.hmrc.gform.service.LabelHelper
 import uk.gov.hmrc.gform.sharedmodel.form.{ RepeatingGroup, RepeatingGroupStructure }
@@ -214,7 +215,11 @@ class RepeatingComponentService(
     formTemplate.sections.flatMap(section => findRepeatingGroups(None, section.fields)).toSet
   }
 
-  def appendNewGroup(formGroupId: String)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Option[List[List[FormComponent]]]] = {
+  private def getEntry[T](key: String, cache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, rds: Reads[T], executionContext: ExecutionContext): Future[Option[T]] = {
+    cache.map { _.flatMap { _.getEntry(key) } }
+  }
+
+  def appendNewGroup(formGroupId: String, cache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Option[List[List[FormComponent]]]] = {
     // on the forms, the AddGroup button's name has the following format:
     // AddGroup-(groupFieldId)
     // that's the reason why the extraction below is required
@@ -230,13 +235,13 @@ class RepeatingComponentService(
       RepeatingGroup(x, render = true)
     }
     for {
-      (dynamicListOpt) <- sessionCache.fetchAndGetEntry[RepeatingGroup](componentId)
+      (dynamicListOpt) <- getEntry[RepeatingGroup](componentId, cache)
       dynamicList = dynamicListOpt.map(_.list).getOrElse(Nil) // Nil should never happen
       cacheMap <- sessionCache.cache[RepeatingGroup](componentId, buildRepeatingGroup(dynamicList, dynamicListOpt.map(_.render).getOrElse(true)))
     } yield cacheMap.getEntry[RepeatingGroup](componentId).map(_.list)
   }
 
-  def removeGroup(idx: Int, formGroupId: String, data: Map[FormComponentId, scala.Seq[String]])(implicit hc: HeaderCarrier, ec: ExecutionContext) = {
+  def removeGroup(idx: Int, formGroupId: String, data: Map[FormComponentId, scala.Seq[String]], cache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext) = {
     // on the forms, the RemoveGroup button's name has the following format:
     // RemoveGroup-(groupFieldId)
     // that's the reason why the extraction below is required
@@ -266,7 +271,7 @@ class RepeatingComponentService(
     }
 
     for {
-      dynamicListOpt <- sessionCache.fetchAndGetEntry[RepeatingGroup](groupId)
+      dynamicListOpt <- getEntry[RepeatingGroup](groupId, cache)
       dynamicList = dynamicListOpt.map(_.list).getOrElse(Nil)
       newData <- emptyCase(dynamicList)
     } yield newData

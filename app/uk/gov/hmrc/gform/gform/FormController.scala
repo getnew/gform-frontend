@@ -240,7 +240,7 @@ class FormController(
 
         for {
           //format OFF
-          optCompList <- repeatService.appendNewGroup(groupId)
+          optCompList <- repeatService.appendNewGroup(groupId, repeatCache)
           dynamicSections <- sectionsF
           formData <- formDataF
           result <- processAddedGroup(optCompList, dynamicSections, formData)
@@ -273,7 +273,7 @@ class FormController(
 
         for {
           dynamicSections <- sectionsF
-          updatedData <- repeatService.removeGroup(idx, groupId, data)
+          updatedData <- repeatService.removeGroup(idx, groupId, data, repeatCache)
           envelope <- envelopeF
           result <- processRemovedGroup(dynamicSections, updatedData, envelope)
         } yield result
