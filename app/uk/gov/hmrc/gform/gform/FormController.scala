@@ -23,12 +23,12 @@ import uk.gov.hmrc.gform.config.{ AppConfig, FrontendAppConfig }
 import uk.gov.hmrc.gform.controllers._
 import uk.gov.hmrc.gform.controllers.helpers.FormDataHelpers.processResponseDataFromBody
 import uk.gov.hmrc.gform.controllers.helpers._
-import uk.gov.hmrc.gform.fileupload.FileUploadService
+import uk.gov.hmrc.gform.fileupload.{ Envelope, FileUploadService }
 import uk.gov.hmrc.gform.gformbackend.GformConnector
 import uk.gov.hmrc.gform.keystore.RepeatingComponentService
 import uk.gov.hmrc.gform.sharedmodel._
 import uk.gov.hmrc.gform.sharedmodel.form._
-import uk.gov.hmrc.gform.sharedmodel.formtemplate.{ FormComponent, FormComponentId, FormTemplate, FormTemplateId, SectionNumber }
+import uk.gov.hmrc.gform.sharedmodel.formtemplate.{ UserId => _, _ }
 import uk.gov.hmrc.gform.validation.{ FormFieldValidationResult, ValidationService, ValidationUtil }
 import uk.gov.hmrc.gform.views.html.form._
 import uk.gov.hmrc.gform.views.html.hardcoded.pages._
@@ -225,36 +225,59 @@ class FormController(
         } yield result
       }
 
-      def processAddGroup(groupId: String): Future[Result] = for {
-        //format OFF
-        optCompList <- repeatService.appendNewGroup(groupId)
-        dynamicSections <- sectionsF
-        keystore <- repeatService.getData(repeatCache)
-        formData <- formDataF
-        userData = UserData(formData, keystore, InProgress)
-        _ <- gformConnector.updateUserData(formId, userData)
-        //format ON
-      } yield Redirect(routes.FormController.form(formId, cache.formTemplate._id, sectionNumber, dynamicSections.size, lang).url + anchor(optCompList))
+      def processAddGroup(groupId: String): Future[Result] = {
+
+        def processAddedGroup(optCompList: Option[List[List[FormComponent]]], dynamicSections: List[Section], formData: FormData): Future[Result] = {
+          val freshRepeatCache = repeatService.getCache
+          for {
+            //format OFF
+            keystore <- repeatService.getData(freshRepeatCache)
+            userData = UserData(formData, keystore, InProgress)
+            _ <- gformConnector.updateUserData(formId, userData)
+            //format ON
+          } yield Redirect(routes.FormController.form(formId, cache.formTemplate._id, sectionNumber, dynamicSections.size, lang).url + anchor(optCompList))
+        }
+
+        for {
+          //format OFF
+          optCompList <- repeatService.appendNewGroup(groupId)
+          dynamicSections <- sectionsF
+          formData <- formDataF
+          result <- processAddedGroup(optCompList, dynamicSections, formData)
+          //format ON
+        } yield result
+      }
 
       def anchor(optCompList: Option[List[List[FormComponent]]]) =
         optCompList.map(list => s"#${list.last.head.id}").getOrElse("")
 
-      def processRemoveGroup(idx: Int, groupId: String, repeatCache: Future[Option[CacheMap]]): Future[Result] = for {
-        dynamicSections <- sectionsF
-        updatedData <- repeatService.removeGroup(idx, groupId, data)
-        repeatingGroups <- repeatService.getAllRepeatingGroups(repeatCache)
-        optCompList = repeatingGroups.getEntry[RepeatingGroup](groupId)
-        envelope <- envelopeF
-        section = dynamicSections(sectionNumber.value)
-        allFields = dynamicSections.flatMap(repeatService.atomicFields(repeatCache))
-        sectionFields = repeatService.atomicFields(repeatCache)(section)
-        v <- validationService.validateForm(sectionFields, section, cache.form.envelopeId, cache.retrievals)(updatedData)
-        errors = validationService.evaluateValidation(v, allFields, updatedData, envelope).toMap
-        formData = FormData(errors.values.toSeq.flatMap(_.toFormField))
-        keystore <- repeatService.getData(repeatCache)
-        userData = UserData(formData, keystore, InProgress)
-        _ <- gformConnector.updateUserData(formId, userData)
-      } yield Redirect(routes.FormController.form(formId, cache.formTemplate._id, sectionNumber, dynamicSections.size, lang).url + anchor(optCompList.map(_.list)))
+      def processRemoveGroup(idx: Int, groupId: String): Future[Result] = {
+
+        def processRemovedGroup(dynamicSections: List[Section], updatedData: Map[FormComponentId, Seq[String]], envelope: Envelope): Future[Result] = {
+          val freshRepeatCache = repeatService.getCache
+          for {
+            repeatingGroups <- repeatService.getAllRepeatingGroups(freshRepeatCache)
+            optCompList = repeatingGroups.getEntry[RepeatingGroup](groupId)
+            section = dynamicSections(sectionNumber.value)
+            allFields = dynamicSections.flatMap(repeatService.atomicFields(freshRepeatCache))
+            sectionFields = repeatService.atomicFields(freshRepeatCache)(section)
+            v <- validationService.validateForm(sectionFields, section, cache.form.envelopeId, cache.retrievals)(updatedData)
+            errors = validationService.evaluateValidation(v, allFields, updatedData, envelope).toMap
+            formData = FormData(errors.values.toSeq.flatMap(_.toFormField))
+            keystore <- repeatService.getData(freshRepeatCache)
+            userData = UserData(formData, keystore, InProgress)
+            _ <- gformConnector.updateUserData(formId, userData)
+          } yield Redirect(routes.FormController.form(formId, cache.formTemplate._id, sectionNumber, dynamicSections.size, lang).url + anchor(optCompList.map(_.list)))
+
+        }
+
+        for {
+          dynamicSections <- sectionsF
+          updatedData <- repeatService.removeGroup(idx, groupId, data)
+          envelope <- envelopeF
+          result <- processRemovedGroup(dynamicSections, updatedData, envelope)
+        } yield result
+      }
 
       val userId = UserId(cache.retrievals.userDetails.groupIdentifier)
       val navigationF: Future[Direction] = sectionsF.map(sections => new Navigator(sectionNumber, sections, data, cache.retrievals).navigate)
@@ -273,7 +296,7 @@ class FormController(
         case SaveAndSummary                 => processSaveAndSummary(userId, cache.form)
         case BackToSummary                  => processSaveAndSummary(userId, cache.form)
         case AddGroup(groupId)              => processAddGroup(groupId)
-        case RemoveGroup(idx, groupId)      => processRemoveGroup(idx, groupId, repeatCache)
+        case RemoveGroup(idx, groupId)      => processRemoveGroup(idx, groupId)
         // format: ON
       }
 
