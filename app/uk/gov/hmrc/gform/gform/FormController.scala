@@ -72,6 +72,7 @@ class FormController(
 
     def startForm: Future[Form] = for {
       formId <- gformConnector.newForm(formTemplateId, userId)
+      _ <- repeatService.clearSession
       form <- gformConnector.getForm(formId)
     } yield form
 

@@ -85,7 +85,8 @@ object SummaryRenderingService {
           case Invalid(errors) => errors
           case Valid(()) => Map.empty[FormComponentId, Set[String]]
         }
-        Fields.getValidationResult(data, fields, envelope, gformErrors)(formComponent)
+        val v = Fields.getValidationResult(data, fields, envelope, gformErrors)(formComponent)
+        v
       }
 
       def valueToHtml(fieldValue: FormComponent): Future[Html] = {
@@ -101,16 +102,26 @@ object SummaryRenderingService {
               group_grid(fieldValue, value, isLabel)
             } else Html("")
           }
+
           fieldValue.`type` match {
             case groupField: Group if presentationHint.contains(SummariseGroupAsGrid) && groupField.repeatsMax.isDefined =>
               val htmlList: Future[List[Html]] =
-                repeatService.getAllFieldsInGroupForSummary(fieldValue, groupField, repeatCache).map(y => for {
-                  group <- y
-                  value = group.map(validate)
-                } yield {
-                  group_grid(fieldValue, value, false)
+                repeatService.getAllFieldsInGroupForSummary(fieldValue, groupField, repeatCache).map(y => {
+                  val yy = y
+                  for {
+                    group <- y
+                    value = group.map(validate)
+                  } yield {
+                    group_grid(fieldValue, value, false)
+                  }
                 })
-              htmlList.map(y => repeating_group(y))
+              val x = 0
+              val xx = x
+              htmlList.map(y => {
+                val x = 0
+                val xx = x
+                repeating_group(y)
+              })
             case groupField: Group if presentationHint.contains(SummariseGroupAsGrid) =>
               groupGrid(groupField.fields)
                 .pure[Future]
