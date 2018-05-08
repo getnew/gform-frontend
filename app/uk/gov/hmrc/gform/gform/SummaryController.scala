@@ -74,7 +74,7 @@ class SummaryController(
 
       val formFieldValidationResultsF = for {
         envelope <- envelopeF
-        errors <- validateForm(cache, envelope, cache.retrievals)
+        errors <- validateForm(cache, envelope, cache.retrievals, repeatService.getCache)
       } yield errors
 
       val isFormValidF: Future[Boolean] = formFieldValidationResultsF.map(x => ValidationUtil.isFormValid(x._2))
@@ -121,9 +121,8 @@ class SummaryController(
     }
   }
 
-  private def validateForm(cache: AuthCacheWithForm, envelope: Envelope, retrievals: Retrievals)(implicit hc: HeaderCarrier): Future[(ValidatedType, Map[FormComponent, FormFieldValidationResult])] = {
+  private def validateForm(cache: AuthCacheWithForm, envelope: Envelope, retrievals: Retrievals, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier): Future[(ValidatedType, Map[FormComponent, FormFieldValidationResult])] = {
     val data = FormDataHelpers.formDataMap(cache.form.formData)
-    val repeatCache = repeatService.getCache
     val sectionsF = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
     val filteredSections = sectionsF.map(_.filter(x => BooleanExpr.isTrue(x.includeIf.map(_.expr).getOrElse(IsTrue), data, retrievals)))
     for {// format: OFF
@@ -147,7 +146,7 @@ class SummaryController(
     // format: OFF
     for {
       envelope          <- envelopeF
-      (v, _)            <- validateForm(cache, envelope, cache.retrievals)
+      (v, _)            <- validateForm(cache, envelope, cache.retrievals, repeatCache)
       result            <- SummaryRenderingService.renderSummary(cache.formTemplate, v, data, cache.retrievals, formId, repeatService, repeatCache, envelope, lang, frontendAppConfig)
     } yield result
   }

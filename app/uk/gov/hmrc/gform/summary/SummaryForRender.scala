@@ -77,8 +77,6 @@ object SummaryRenderingService {
     hc: HeaderCarrier,
     ec: ExecutionContext): Future[SummaryForRender] = {
 
-    val repeatCache = repeatService.getCache
-
     repeatService.getAllSections(formTemplate, data, repeatCache).flatMap { sections =>
       val fields: List[FormComponent] = sections.flatMap(repeatService.atomicFields(repeatCache))
 
