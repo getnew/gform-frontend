@@ -288,6 +288,7 @@ class RepeatingComponentService(
         y.structure.foreach(x =>
           x._2.asOpt[RepeatingGroup] match {
             case Some(z) => sessionCache.cache[RepeatingGroup](x._1, z)
+            case None =>
           })
       ))
   }
@@ -345,24 +346,18 @@ class RepeatingComponentService(
   }
 
   def getRepeatingGroupsForRendering(topFieldValue: FormComponent, groupField: Group, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[(List[List[FormComponent]], Boolean)] = {
-    val x = 0
-    val xx = x
     repeatCache.flatMap {
       case Some(cacheMap) =>
         cacheMap.getEntry[RepeatingGroup](topFieldValue.id.value) match {
           case Some(dynamicList) if dynamicList.render =>
-            val y1 = Future.successful((dynamicList.list, isRepeatsMaxReached(dynamicList.list.size, groupField)))
-            y1
+            Future.successful((dynamicList.list, isRepeatsMaxReached(dynamicList.list.size, groupField)))
           case Some(dynamicList) =>
-            val y2 = Future.successful(Nil, false)
-            y2
+            Future.successful((Nil, false))
           case None =>
-            val y3 = initialiseDynamicGroupList(topFieldValue, groupField)
-            y3
+            initialiseDynamicGroupList(topFieldValue, groupField)
         }
       case None =>
-        val y4 = initialiseDynamicGroupList(topFieldValue, groupField)
-        y4
+        initialiseDynamicGroupList(topFieldValue, groupField)
     }
   }
 
@@ -391,8 +386,6 @@ class RepeatingComponentService(
   }
 
   def getAllFieldsInGroup(topFieldValue: FormComponent, groupField: Group, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): List[List[FormComponent]] = {
-    val x = 0
-    val xx = x
     val eventualMaybeGroup = repeatCache.flatMap {
       case Some(cacheMap) =>
         Future.successful(cacheMap.getEntry[RepeatingGroup](topFieldValue.id.value))
@@ -400,32 +393,28 @@ class RepeatingComponentService(
     }
     // TODO Await() must be eliminated
     val resultOpt = Await.result(eventualMaybeGroup, configModule.timeOut seconds)
-    //    val resultOpt = Await.result(sessionCache.fetchAndGetEntry[RepeatingGroup](topFieldValue.id.value), configModule.timeOut seconds)
-    val y = resultOpt.map(_.list).getOrElse(List(groupField.fields))
-    val yy = y
-    y
+    resultOpt.map(_.list).getOrElse(List(groupField.fields))
   }
 
   def getAllFieldsInGroupForSummary(topFieldValue: FormComponent, groupField: Group, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[List[List[FormComponent]]] = {
-    val x = 0
-    val xx = x
     repeatCache.flatMap {
       case Some(cacheMap) =>
         val list: List[List[FormComponent]] = buildGroupFieldsLabelsForSummary(
           cacheMap.getEntry[RepeatingGroup](topFieldValue.id.value).fold[List[List[FormComponent]]](List(groupField.fields))(x => if (x.render) x.list else List(groupField.fields)), topFieldValue
         )
         Future.successful(list)
+      case None =>
+        Future.successful(Nil)
     }
   }
 
   def clearSession(implicit hc: HeaderCarrier, ec: ExecutionContext) = sessionCache.remove()
 
   def atomicFields(repeatCache: Future[Option[CacheMap]])(section: BaseSection)(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
-    val x = 0
-    val xx = x
     def atomicFields(fields: List[FormComponent]): List[FormComponent] = {
       fields.flatMap {
         case (fv: FormComponent) => fv.`type` match {
+
           case groupField @ Group(_, _, _, _, _, _) => section match {
             case Section(_, _, _, _, _, _, _, _, _) => atomicFields {
               val fields = getAllFieldsInGroup(fv, groupField, repeatCache)
@@ -438,14 +427,14 @@ class RepeatingComponentService(
               (first +: fields.tail).flatten
             }
             case DeclarationSection(_, _, _, _) => atomicFields(groupField.fields)
+            case AcknowledgementSection(_,_,_,_) => Nil
+            case EnrolmentSection(_,_,_) => Nil
           }
           case _ => List(fv)
         }
       }
     }
-    val y = atomicFields(section.fields)
-    val yy = y
-    y
+    atomicFields(section.fields)
   }
 
   private def buildGroupFieldsLabelsForSummary(list: List[List[FormComponent]], fieldValue: FormComponent): List[List[FormComponent]] = {
