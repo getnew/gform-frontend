@@ -427,8 +427,8 @@ class RepeatingComponentService(
               (first +: fields.tail).flatten
             }
             case DeclarationSection(_, _, _, _) => atomicFields(groupField.fields)
-            case AcknowledgementSection(_,_,_,_) => Nil
-            case EnrolmentSection(_,_,_) => Nil
+            case AcknowledgementSection(_, _, _, _) => Nil
+            case EnrolmentSection(_, _, _) => Nil
           }
           case _ => List(fv)
         }
