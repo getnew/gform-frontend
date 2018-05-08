@@ -186,7 +186,8 @@ class SectionRenderingService(
     } yield html.form.form(formTemplate, pageLevelErrorHtml, renderingInfo, form._id, shouldDisplayBack = false, shouldDisplayBackToSummary = false, frontendAppConfig)
   }
 
-  def renderAcknowledgementSection(form: Form, formTemplate: FormTemplate, retrievals: Retrievals, repeatCache: Future[Option[CacheMap]], lang: Option[String], eventId: String)(implicit hc: HeaderCarrier, request: Request[_], messages: Messages): Future[Html] = {
+  def renderAcknowledgementSection(form: Form, formTemplate: FormTemplate, retrievals: Retrievals,
+    repeatCache: Future[Option[CacheMap]], lang: Option[String], eventId: String)(implicit hc: HeaderCarrier, request: Request[_], messages: Messages): Future[Html] = {
 
     val ei = ExtraInfo(form._id, SectionNumber(0), Map.empty, formTemplate, Envelope(Nil), List(formTemplate.acknowledgementSection), 0, formTemplate.declarationSection, retrievals, repeatCache, lang)
 
@@ -258,7 +259,8 @@ class SectionRenderingService(
     Future.successful(html.form.snippets.field_template_info(fieldValue, infoType, Html(parsedMarkdownText), index))
   }
 
-  private def htmlForFileUpload(fieldValue: FormComponent, index: Int, ei: ExtraInfo, totalSections: Int, validatedType: Option[ValidatedType])(implicit hc: HeaderCarrier) = {
+  private def htmlForFileUpload(fieldValue: FormComponent, index: Int, ei: ExtraInfo, totalSections: Int,
+    validatedType: Option[ValidatedType])(implicit hc: HeaderCarrier) = {
     html.form.snippets.field_template_file_upload(ei.formId, ei.formTemplate._id, ei.sectionNumber, fieldValue, buildFormFieldValidationResult(fieldValue, ei, validatedType), index, ei.formMaxAttachmentSizeMB, totalSections, ei.lang)
   }
 
@@ -271,7 +273,9 @@ class SectionRenderingService(
       markDownText
   }
 
-  private def htmlForChoice(fieldValue: FormComponent, choice: ChoiceType, options: NonEmptyList[String], orientation: Orientation, selections: List[Int], optionalHelpText: Option[List[String]], index: Int, validatedType: Option[ValidatedType], ei: ExtraInfo)(implicit hc: HeaderCarrier) = {
+  private def htmlForChoice(fieldValue: FormComponent, choice: ChoiceType, options: NonEmptyList[String],
+    orientation: Orientation, selections: List[Int], optionalHelpText: Option[List[String]],
+    index: Int, validatedType: Option[ValidatedType], ei: ExtraInfo)(implicit hc: HeaderCarrier) = {
 
     def addTargetToLinks(html: String) = {
       val doc = Jsoup.parse(html)
@@ -302,14 +306,15 @@ class SectionRenderingService(
     }
   }
 
-  private def htmlForText(fieldValue: FormComponent, t: Text, expr: Expr, index: Int, validatedType: Option[ValidatedType], ei: ExtraInfo,
-    isHidden: Boolean)(implicit hc: HeaderCarrier) = {
+  private def htmlForText(fieldValue: FormComponent, t: Text, expr: Expr, index: Int,
+    validatedType: Option[ValidatedType], ei: ExtraInfo, isHidden: Boolean)(implicit hc: HeaderCarrier) = {
     def scale = t.constraint match {
       case Number(_, maxFractionalDigits, _) => Some(maxFractionalDigits)
       case PositiveNumber(_, maxFractionalDigits, _) => Some(maxFractionalDigits)
       case _ => None
     }
-    def renderText(fieldValue: FormComponent, t: Text, prepopValue: String, validatedValue: Option[FormFieldValidationResult], isHidden: Boolean): Html = {
+    def renderText(fieldValue: FormComponent, t: Text, prepopValue: String,
+      validatedValue: Option[FormFieldValidationResult], isHidden: Boolean): Html = {
       val htmlWithValues = fieldValue.presentationHint match {
         case None => html.form.snippets.field_template_text(fieldValue, t, prepopValue, validatedValue, index, ei.section.title)
         case Some(x) if x.contains(TotalValue) => html.form.snippets.field_template_text_total(fieldValue, t, prepopValue, validatedValue, index, ei.section.title)
@@ -342,8 +347,8 @@ class SectionRenderingService(
     } yield renderText(fieldValue, t, prepopValue, validatedValue, isHidden)
   }
 
-  private def htmlForSortCode(fieldValue: FormComponent, sC: UkSortCode, expr: Expr, index: Int, validatedType: Option[ValidatedType], ei: ExtraInfo,
-    isHidden: Boolean)(implicit hc: HeaderCarrier) = {
+  private def htmlForSortCode(fieldValue: FormComponent, sC: UkSortCode, expr: Expr, index: Int,
+    validatedType: Option[ValidatedType], ei: ExtraInfo, isHidden: Boolean)(implicit hc: HeaderCarrier) = {
     val prepopValueF: Future[String] = ei.fieldData.get(fieldValue.id) match {
       case None => prepopService.prepopData(expr, ei.formTemplate, ei.retrievals, ei.fieldData, ei.repeatCache, ei.section)
       case _ => Future.successful("") // Don't prepop something we already submitted
@@ -358,13 +363,14 @@ class SectionRenderingService(
     }
   }
 
-  private def htmlForAddress(fieldValue: FormComponent, international: Boolean, index: Int, validatedType: Option[ValidatedType], ei: ExtraInfo)(implicit hc: HeaderCarrier) = {
+  private def htmlForAddress(fieldValue: FormComponent, international: Boolean, index: Int,
+    validatedType: Option[ValidatedType], ei: ExtraInfo)(implicit hc: HeaderCarrier) = {
 
     html.form.snippets.field_template_address(international, fieldValue, buildFormFieldValidationResult(fieldValue, ei, validatedType), index, ei.section.title)
   }
 
-  private def htmlForDate(fieldValue: FormComponent, offset: Offset, dateValue: Option[DateValue], index: Int, validatedType: Option[ValidatedType],
-    ei: ExtraInfo, isHidden: Boolean = false)(implicit hc: HeaderCarrier) = {
+  private def htmlForDate(fieldValue: FormComponent, offset: Offset, dateValue: Option[DateValue], index: Int,
+    validatedType: Option[ValidatedType], ei: ExtraInfo, isHidden: Boolean = false)(implicit hc: HeaderCarrier) = {
     val prepopValues: Option[DateExpr] = dateValue.map(DateExpr.fromDateValue).map(DateExpr.withOffset(offset, _))
 
     if (isHidden) {
@@ -400,7 +406,8 @@ class SectionRenderingService(
     } yield html.form.snippets.group(fieldValue, maybeHint, groupField, lhtml, groupField.orientation, limitReached, index)
   }
 
-  private def getGroupForRendering(fieldValue: FormComponent, groupField: Group, orientation: Orientation, validatedType: Option[ValidatedType], ei: ExtraInfo)(implicit hc: HeaderCarrier, request: Request[_], messsages: Messages): Future[(List[Html], Boolean)] = {
+  private def getGroupForRendering(fieldValue: FormComponent, groupField: Group, orientation: Orientation,
+    validatedType: Option[ValidatedType], ei: ExtraInfo)(implicit hc: HeaderCarrier, request: Request[_], messsages: Messages): Future[(List[Html], Boolean)] = {
     if (groupField.repeatsMax.isDefined) {
       repeatService.getRepeatingGroupsForRendering(fieldValue, groupField, ei.repeatCache).flatMap {
         case (groupList, isLimit) =>
