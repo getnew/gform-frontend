@@ -58,7 +58,9 @@ class PrepopService(
     repeatingComponentService: RepeatingComponentService
 ) {
 
-  def prepopData(expr: Expr, formTemplate: FormTemplate, retrievals: Retrievals, data: Map[FormComponentId, Seq[String]], repeatCache: Future[Option[CacheMap]], section: BaseSection, scale: Option[Int] = None)(implicit hc: HeaderCarrier): Future[String] = {
+  def prepopData(expr: Expr, formTemplate: FormTemplate, retrievals: Retrievals, data: Map[FormComponentId, Seq[String]],
+                 repeatCache: Future[Option[CacheMap]], section: BaseSection, scale: Option[Int] = None
+                )(implicit hc: HeaderCarrier): Future[String] = {
     def toBigDecimal(str: String): BigDecimal =
       Try(BigDecimal(str.replace(",", ""))) match {
         case Success(x) => x

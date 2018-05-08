@@ -228,7 +228,8 @@ class FormController(
 
       def processAddGroup(groupId: String): Future[Result] = {
 
-        def processAddedGroup(optCompList: Option[List[List[FormComponent]]], dynamicSections: List[Section], formData: FormData): Future[Result] = {
+        def processAddedGroup(optCompList: Option[List[List[FormComponent]]], dynamicSections: List[Section],
+                              formData: FormData): Future[Result] = {
           val freshRepeatCache = repeatService.getCache
           for {
             //format OFF
@@ -254,7 +255,8 @@ class FormController(
 
       def processRemoveGroup(idx: Int, groupId: String): Future[Result] = {
 
-        def processRemovedGroup(dynamicSections: List[Section], updatedData: Map[FormComponentId, Seq[String]], envelope: Envelope): Future[Result] = {
+        def processRemovedGroup(dynamicSections: List[Section], updatedData: Map[FormComponentId, Seq[String]],
+                                envelope: Envelope): Future[Result] = {
           val freshRepeatCache = repeatService.getCache
           for {
             repeatingGroups <- repeatService.getAllRepeatingGroups(freshRepeatCache)

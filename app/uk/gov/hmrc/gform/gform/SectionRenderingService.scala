@@ -93,7 +93,9 @@ class SectionRenderingService(
   )(implicit hc: HeaderCarrier, request: Request[_], messages: Messages): Future[Html] = {
 
     val section = dynamicSections(sectionNumber.value)
-    val ei = ExtraInfo(form._id, sectionNumber, fieldData, formTemplate, envelope, dynamicSections, formMaxAttachmentSizeMB, section, retrievals, repeatCache, lang)
+    val ei =
+      ExtraInfo(form._id, sectionNumber, fieldData, formTemplate, envelope, dynamicSections,
+        formMaxAttachmentSizeMB, section, retrievals, repeatCache, lang)
     val actionForm = uk.gov.hmrc.gform.gform.routes.FormController.updateFormData(form._id, sectionNumber, lang)
     val listResult = errors.getOrElse(Nil).map { case (_, validationResult) => validationResult }
 
@@ -170,7 +172,9 @@ class SectionRenderingService(
     lang: Option[String]
   )(implicit hc: HeaderCarrier, request: Request[_], messages: Messages): Future[Html] = {
 
-    val ei = ExtraInfo(form._id, SectionNumber(0), fieldData, formTemplate, Envelope(Nil), List(formTemplate.declarationSection), 0, formTemplate.declarationSection, retrievals, repeatCache, lang)
+    val ei =
+      ExtraInfo(form._id, SectionNumber(0), fieldData, formTemplate, Envelope(Nil), List(formTemplate.declarationSection),
+        0, formTemplate.declarationSection, retrievals, repeatCache, lang)
 
     val confirm = formTemplate.formCategory match {
       case Some(HMRCReturnForm) => "Accept and submit return"
@@ -189,7 +193,9 @@ class SectionRenderingService(
   def renderAcknowledgementSection(form: Form, formTemplate: FormTemplate, retrievals: Retrievals,
     repeatCache: Future[Option[CacheMap]], lang: Option[String], eventId: String)(implicit hc: HeaderCarrier, request: Request[_], messages: Messages): Future[Html] = {
 
-    val ei = ExtraInfo(form._id, SectionNumber(0), Map.empty, formTemplate, Envelope(Nil), List(formTemplate.acknowledgementSection), 0, formTemplate.declarationSection, retrievals, repeatCache, lang)
+    val ei =
+      ExtraInfo(form._id, SectionNumber(0), Map.empty, formTemplate, Envelope(Nil), List(formTemplate.acknowledgementSection),
+        0, formTemplate.declarationSection, retrievals, repeatCache, lang)
 
     val formCategory = formTemplate.formCategory.getOrElse(Default)
     val timeFormat = DateTimeFormatter.ofPattern("HH:mm")
@@ -213,7 +219,9 @@ class SectionRenderingService(
   )(implicit hc: HeaderCarrier, request: Request[_], messages: Messages): Future[Html] = {
 
     val formId = FormId("")
-    val ei = ExtraInfo(formId, SectionNumber(0), fieldData, formTemplate, Envelope(Nil), List(enrolmentSection), 0, enrolmentSection, emptyRetrievals, repeatCache, lang)
+    val ei =
+      ExtraInfo(formId, SectionNumber(0), fieldData, formTemplate, Envelope(Nil), List(enrolmentSection),
+        0, enrolmentSection, emptyRetrievals, repeatCache, lang)
     val listResult = errors.map { case (_, validationResult) => validationResult }
     for {
       snippets <- Future.sequence(enrolmentSection.fields.map(fieldValue => htmlFor(fieldValue, 0, ei, formTemplate.sections.size, validatedType)))

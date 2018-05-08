@@ -121,7 +121,9 @@ class SummaryController(
     }
   }
 
-  private def validateForm(cache: AuthCacheWithForm, envelope: Envelope, retrievals: Retrievals, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier): Future[(ValidatedType, Map[FormComponent, FormFieldValidationResult])] = {
+  private def validateForm(cache: AuthCacheWithForm, envelope: Envelope, retrievals: Retrievals,
+                           repeatCache: Future[Option[CacheMap]]
+                          )(implicit hc: HeaderCarrier): Future[(ValidatedType, Map[FormComponent, FormFieldValidationResult])] = {
     val data = FormDataHelpers.formDataMap(cache.form.formData)
     val sectionsF = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
     val filteredSections = sectionsF.map(_.filter(x => BooleanExpr.isTrue(x.includeIf.map(_.expr).getOrElse(IsTrue), data, retrievals)))

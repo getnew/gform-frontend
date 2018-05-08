@@ -135,7 +135,9 @@ object Fields {
     getFormFields(templateFields)
   }
 
-  def getFields(currentSection: Section, dynamicSections: List[Section], repeatingComponentService: RepeatingComponentService, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
+  def getFields(currentSection: Section, dynamicSections: List[Section], repeatingComponentService: RepeatingComponentService,
+                repeatCache: Future[Option[CacheMap]]
+               )(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
     def isTotalValue(maybe: Option[List[PresentationHint]]): Boolean = {
       maybe.exists(x => x.contains(TotalValue))
     }
