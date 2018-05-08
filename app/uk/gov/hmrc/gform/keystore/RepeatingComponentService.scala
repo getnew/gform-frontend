@@ -397,8 +397,6 @@ class RepeatingComponentService(
   }
 
   def getAllFieldsInGroupForSummary(topFieldValue: FormComponent, groupField: Group, repeatCache: Future[Option[CacheMap]])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[List[List[FormComponent]]] = {
-    val x = 0
-    val xx = x
     repeatCache.flatMap {
       case Some(cacheMap) =>
         val list: List[List[FormComponent]] = buildGroupFieldsLabelsForSummary(

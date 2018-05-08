@@ -60,23 +60,11 @@ class AcknowledgementController(
   }
 
   def downloadPDF(formId: FormId, formTemplateId4Ga: FormTemplateId, lang: Option[String], eventId: String): Action[AnyContent] = auth.async(formId) { implicit request => cache =>
-    val x = 0
-    val xx = x
     cache.form.status match {
       case Submitted =>
         // format: OFF
-        val repeatCache = repeatService.getCache
-        repeatCache.map {
-          case Some(cacheMap) =>
-            val c = cacheMap
-            val cc = c
-          case None =>
-            val x = 0
-            val xx = x
-        }
-
         for {
-          summaryHml  <- summaryController.getSummaryHTML(formId, cache, repeatCache, lang)
+          summaryHml  <- summaryController.getSummaryHTML(formId, cache, repeatService.getCache, lang)
           formString  =  nonRepudiationHelpers.formDataToJson(cache.form)
           hashedValue =  nonRepudiationHelpers.computeHash(formString)
           _           =  nonRepudiationHelpers.sendAuditEvent(hashedValue, formString, eventId)
