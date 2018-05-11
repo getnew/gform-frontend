@@ -52,6 +52,7 @@ object SummaryRenderingService {
     formId: FormId,
     repeatService: RepeatingComponentService,
     envelope: Envelope,
+    repeatCache: Option[CacheMap],
     lang: Option[String],
     frontendAppConfig: FrontendAppConfig
   )(
@@ -60,7 +61,16 @@ object SummaryRenderingService {
     messages: Messages,
     hc: HeaderCarrier,
     ec: ExecutionContext): Future[Html] =
-    summaryForRender(validatedType, formFields, retrievals, formId, formTemplate, repeatService, envelope, lang)
+    summaryForRender(
+      validatedType,
+      formFields,
+      retrievals,
+      formId,
+      formTemplate,
+      repeatService,
+      envelope,
+      repeatCache,
+      lang)
       .map(s => summary(formTemplate, s, formId, formTemplate.formCategory.getOrElse(Default), lang, frontendAppConfig))
 
   def summaryForRender(
@@ -71,125 +81,121 @@ object SummaryRenderingService {
     formTemplate: FormTemplate,
     repeatService: RepeatingComponentService,
     envelope: Envelope,
+    repeatCache: Option[CacheMap],
     lang: Option[String]
   )(
-    implicit
-    hc: HeaderCarrier,
-    ec: ExecutionContext): Future[SummaryForRender] =
-    repeatService.getAllSections(formTemplate, data).flatMap { sections =>
-      val fields: List[FormComponent] = sections.flatMap(repeatService.atomicFields)
+    implicit hc: HeaderCarrier,
+    ec: ExecutionContext): Future[SummaryForRender] = {
+    val sections = repeatService.getAllSections(formTemplate, data, repeatCache)
+    val fields: List[FormComponent] = sections.flatMap(s => repeatService.atomicFields(s, repeatCache))
 
-      def validate(formComponent: FormComponent): Option[FormFieldValidationResult] = {
-        val gformErrors = validatedType match {
-          case Invalid(errors) => errors
-          case Valid(())       => Map.empty[FormComponentId, Set[String]]
-        }
-        Fields.getValidationResult(data, fields, envelope, gformErrors)(formComponent)
+    def validate(formComponent: FormComponent): Option[FormFieldValidationResult] = {
+      val gformErrors = validatedType match {
+        case Invalid(errors) => errors
+        case Valid(())       => Map.empty[FormComponentId, Set[String]]
       }
+      Fields.getValidationResult(data, fields, envelope, gformErrors)(formComponent)
+    }
 
-      def valueToHtml(fieldValue: FormComponent): Future[Html] = {
+    def valueToHtml(fieldValue: FormComponent): Future[Html] = {
 
-        def groupToHtml(fieldValue: FormComponent, presentationHint: List[PresentationHint]): Future[Html] = {
-          val isLabel = fieldValue.shortName.getOrElse(fieldValue.label).nonEmpty
-          def groupGrid(formComponents: List[FormComponent]) = {
-            val value = formComponents
-              .filter { y =>
-                val x = validate(y)
-                x.isDefined
-              }
-              .map(validate)
-            if (value.nonEmpty) {
-              group_grid(fieldValue, value, isLabel)
-            } else Html("")
-          }
-          fieldValue.`type` match {
-            case groupField: Group
-                if presentationHint.contains(SummariseGroupAsGrid) && groupField.repeatsMax.isDefined =>
-              val htmlList: Future[List[Html]] =
-                repeatService
-                  .getAllFieldsInGroupForSummary(fieldValue, groupField)
-                  .map(y =>
-                    for {
-                      group <- y
-                      value = group.map(validate)
-                    } yield {
-                      group_grid(fieldValue, value, false)
-                  })
-              htmlList.map(y => repeating_group(y))
-            case groupField: Group if presentationHint.contains(SummariseGroupAsGrid) =>
-              groupGrid(groupField.fields)
-                .pure[Future]
-            case groupField @ Group(_, orientation, _, _, _, _) =>
-              for {
-                fvs      <- repeatService.getAllFieldsInGroupForSummary(fieldValue, groupField)
-                htmlList <- Future.sequence(fvs.flatMap(_.map { case (fv: FormComponent) => valueToHtml(fv) }.toList))
-              } yield group(fieldValue, htmlList, orientation, isLabel)
-            case _ => valueToHtml(fieldValue)
-          }
+      def groupToHtml(fieldValue: FormComponent, presentationHint: List[PresentationHint]): Future[Html] = {
+        val isLabel = fieldValue.shortName.getOrElse(fieldValue.label).nonEmpty
+
+        def groupGrid(formComponents: List[FormComponent]) = {
+          val value = formComponents
+            .filter { y =>
+              val x = validate(y)
+              x.isDefined
+            }
+            .map(validate)
+          if (value.nonEmpty) {
+            group_grid(fieldValue, value, isLabel)
+          } else Html("")
         }
 
         fieldValue.`type` match {
-          case UkSortCode(_) => Future.successful(sort_code(fieldValue, validate(fieldValue)))
-          case Date(_, _, _) => Future.successful(date(fieldValue, validate(fieldValue)))
-          case Address(_)    => Future.successful(address(fieldValue, validate(fieldValue)))
-          case Text(_, _)    => Future.successful(text(fieldValue, validate(fieldValue)))
-          case TextArea      => Future.successful(textarea(fieldValue, validate(fieldValue)))
-          case Choice(_, options, _, _, _) =>
-            val selections = options.toList.zipWithIndex
-              .map {
-                case (option, index) =>
-                  validate(fieldValue)
-                    .flatMap(_.getOptionalCurrentValue(fieldValue.id.value + index.toString))
-                    .map(_ => option)
-              }
-              .collect { case Some(selection) => selection }
-
-            Future.successful(choice(fieldValue, selections))
-          case f @ FileUpload()         => Future.successful(file_upload(fieldValue, f, validate(fieldValue)))
-          case InformationMessage(_, _) => Future.successful(Html(""))
-          case Group(_, _, _, _, _, _)  => groupToHtml(fieldValue, fieldValue.presentationHint.getOrElse(Nil))
+          case groupField: Group
+              if presentationHint.contains(SummariseGroupAsGrid) && groupField.repeatsMax.isDefined =>
+            val htmlList: List[Html] =
+              repeatService
+                .getAllFieldsInGroupForSummary(fieldValue, groupField, repeatCache)
+                .map(group => group_grid(fieldValue, group.map(validate), false))
+            Future.successful(repeating_group(htmlList))
+          case groupField: Group if presentationHint.contains(SummariseGroupAsGrid) =>
+            groupGrid(groupField.fields)
+              .pure[Future]
+          case groupField @ Group(_, orientation, _, _, _, _) =>
+            val fvs = repeatService.getAllFieldsInGroupForSummary(fieldValue, groupField, repeatCache)
+            for {
+              htmlList <- Future.sequence(fvs.flatMap(_.map { case (fv: FormComponent) => valueToHtml(fv) }.toList))
+            } yield group(fieldValue, htmlList, orientation, isLabel)
+          case _ => valueToHtml(fieldValue)
         }
       }
 
-      def showOnSummary(fieldValue: FormComponent) =
-        fieldValue.presentationHint
-          .fold(false)(x => x.contains(InvisibleInSummary))
+      fieldValue.`type` match {
+        case UkSortCode(_) => Future.successful(sort_code(fieldValue, validate(fieldValue)))
+        case Date(_, _, _) => Future.successful(date(fieldValue, validate(fieldValue)))
+        case Address(_)    => Future.successful(address(fieldValue, validate(fieldValue)))
+        case Text(_, _)    => Future.successful(text(fieldValue, validate(fieldValue)))
+        case TextArea      => Future.successful(textarea(fieldValue, validate(fieldValue)))
+        case Choice(_, options, _, _, _) =>
+          val selections = options.toList.zipWithIndex
+            .map {
+              case (option, index) =>
+                validate(fieldValue)
+                  .flatMap(_.getOptionalCurrentValue(fieldValue.id.value + index.toString))
+                  .map(_ => option)
+            }
+            .collect { case Some(selection) => selection }
 
-      val snippetsF: Future[List[Html]] = {
-        val allSections = sections.zipWithIndex
-        val sectionsToRender = allSections.filter {
-          case (section, idx) =>
-            BooleanExpr.isTrue(section.includeIf.getOrElse(IncludeIf(IsTrue)).expr, data, retrievals)
-        }
-        Future
-          .sequence(sectionsToRender.map {
-            case (section, index) =>
-              val x = begin_section(
-                formTemplate._id,
-                formId,
-                section.shortName.getOrElse(section.title),
-                section.description,
-                index,
-                sections.size,
-                lang)
-              Future
-                .sequence(
-                  section.fields
-                    .filterNot(showOnSummary)
-                    .map(valueToHtml)
-                )
-                .map(x => x ++ List(end_section(formTemplate._id, formId, section.title, index)))
-                .map(z => x :: z)
-          })
-          .map(x => x.flatten) //TODO ask a better way to do this.
+          Future.successful(choice(fieldValue, selections))
+        case f @ FileUpload()         => Future.successful(file_upload(fieldValue, f, validate(fieldValue)))
+        case InformationMessage(_, _) => Future.successful(Html(""))
+        case Group(_, _, _, _, _, _)  => groupToHtml(fieldValue, fieldValue.presentationHint.getOrElse(Nil))
       }
-      val cacheMap: Future[CacheMap] = repeatService.getAllRepeatingGroups
-      val repeatingGroups: Future[List[List[List[FormComponent]]]] =
-        Future.sequence(sections.flatMap(_.fields).map(fv => (fv.id, fv.`type`)).collect {
-          case (fieldId, group: Group) =>
-            cacheMap.map(_.getEntry[RepeatingGroup](fieldId.value).map(_.list).getOrElse(Nil))
-        })
-      fieldJavascript(fields, repeatingGroups)
-        .flatMap(javascript => snippetsF.map(snippets => SummaryForRender(snippets, Html(javascript), sections.size)))
     }
+
+    def showOnSummary(fieldValue: FormComponent) =
+      fieldValue.presentationHint
+        .fold(false)(x => x.contains(InvisibleInSummary))
+
+    val snippetsF: Future[List[Html]] = {
+      val allSections = sections.zipWithIndex
+      val sectionsToRender = allSections.filter {
+        case (section, idx) =>
+          BooleanExpr.isTrue(section.includeIf.getOrElse(IncludeIf(IsTrue)).expr, data, retrievals)
+      }
+      Future
+        .sequence(sectionsToRender.map {
+          case (section, index) =>
+            val x = begin_section(
+              formTemplate._id,
+              formId,
+              section.shortName.getOrElse(section.title),
+              section.description,
+              index,
+              sections.size,
+              lang)
+            Future
+              .sequence(
+                section.fields
+                  .filterNot(showOnSummary)
+                  .map(valueToHtml)
+              )
+              .map(x => x ++ List(end_section(formTemplate._id, formId, section.title, index)))
+              .map(z => x :: z)
+        })
+        .map(x => x.flatten) //TODO ask a better way to do this.
+    }
+    val cacheMap: CacheMap = repeatService.getAllRepeatingGroups(repeatCache)
+    val repeatingGroups: List[List[List[FormComponent]]] =
+      sections.flatMap(_.fields).map(fv => (fv.id, fv.`type`)).collect {
+        case (fieldId, group: Group) =>
+          cacheMap.getEntry[RepeatingGroup](fieldId.value).map(_.list).getOrElse(Nil)
+      }
+    fieldJavascript(fields, Future.successful(repeatingGroups))
+      .flatMap(javascript => snippetsF.map(snippets => SummaryForRender(snippets, Html(javascript), sections.size)))
+  }
 }

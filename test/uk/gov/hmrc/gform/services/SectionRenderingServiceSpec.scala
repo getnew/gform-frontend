@@ -54,6 +54,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
       formTemplate: FormTemplate,
       retrievals: Retrievals,
       data: Map[FormComponentId, Seq[String]],
+      repeatCache: Option[CacheMap],
       section: BaseSection,
       scale: Option[Int])(implicit hc: HeaderCarrier): Future[String] =
       Future.successful("")
@@ -61,22 +62,29 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
 
   val mockRepeatService = new RepeatingComponentService(null, null) {
 
-    override def getAllSections(formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]])(
+    override def getAllSections(
+      formTemplate: FormTemplate,
+      data: Map[FormComponentId, Seq[String]],
+      sessionCacheMap: Option[CacheMap]): List[Section] =
+      allSections
+
+    override def getAllRepeatingGroups(sessionCacheMap: Option[CacheMap]): CacheMap =
+      CacheMap("EMPTY", Map.empty[String, JsValue])
+
+    override def atomicFields(section: BaseSection, sessionCacheMap: Option[CacheMap])(
       implicit hc: HeaderCarrier,
-      ec: ExecutionContext): Future[List[Section]] =
-      Future.successful(allSections)
-
-    override def getAllRepeatingGroups(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[CacheMap] =
-      Future.successful(CacheMap("EMPTY", Map.empty[String, JsValue]))
-
-    override def atomicFields(
-      section: BaseSection)(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] =
+      ec: ExecutionContext): List[FormComponent] =
       section.fields
 
-    override def getRepeatingGroupsForRendering(topFieldValue: FormComponent, groupField: Group)(
-      implicit hc: HeaderCarrier,
-      ec: ExecutionContext) =
+    override def getRepeatingGroupsForRendering(
+      topFieldValue: FormComponent,
+      groupField: Group,
+      sessionCacheMap: Option[CacheMap])(implicit hc: HeaderCarrier, ec: ExecutionContext) =
       Future.successful((List(groupField.fields), false))
+
+    override def fetchSessionCache(
+      formTemplate: FormTemplate)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Option[CacheMap]] =
+      Future.successful(None)
   }
 
   val testService = new SectionRenderingService(mockRepeatService, mockPrepopService, frontendAppConfig)
@@ -96,6 +104,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
         0,
         Nil,
         retrievals,
+        None,
         None
       )
       .futureValue
@@ -124,6 +133,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
         0,
         Nil,
         retrievals,
+        None,
         None
       )
       .futureValue
@@ -161,6 +171,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
         0,
         Nil,
         retrievals,
+        None,
         None
       )
       .futureValue
@@ -186,6 +197,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
         0,
         Nil,
         retrievals,
+        None,
         None
       )
       .futureValue
@@ -278,6 +290,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
         0,
         Nil,
         retrievals,
+        None,
         None
       )
       .futureValue
@@ -331,6 +344,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
         0,
         Nil,
         retrievals,
+        None,
         None
       )
       .futureValue
@@ -350,21 +364,24 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
 
     val mock2RepeatService = new RepeatingComponentService(null, null) {
 
-      override def getAllSections(formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]])(
+      override def getAllSections(
+        formTemplate: FormTemplate,
+        data: Map[FormComponentId, Seq[String]],
+        sessionCacheMap: Option[CacheMap]): List[Section] =
+        allSections
+
+      override def getAllRepeatingGroups(sessionCacheMap: Option[CacheMap]): CacheMap =
+        CacheMap("EMPTY", Map.empty[String, JsValue])
+
+      override def atomicFields(section: BaseSection, sessionCacheMap: Option[CacheMap])(
         implicit hc: HeaderCarrier,
-        ec: ExecutionContext): Future[List[Section]] =
-        Future.successful(allSections)
-
-      override def getAllRepeatingGroups(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[CacheMap] =
-        Future.successful(CacheMap("EMPTY", Map.empty[String, JsValue]))
-
-      override def atomicFields(
-        section: BaseSection)(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] =
+        ec: ExecutionContext): List[FormComponent] =
         section.fields
 
-      override def getRepeatingGroupsForRendering(topFieldValue: FormComponent, groupField: Group)(
-        implicit hc: HeaderCarrier,
-        ec: ExecutionContext) =
+      override def getRepeatingGroupsForRendering(
+        topFieldValue: FormComponent,
+        groupField: Group,
+        sessionCacheMap: Option[CacheMap])(implicit hc: HeaderCarrier, ec: ExecutionContext) =
         Future.successful((List(groupField.fields, groupField.fields), true))
     }
 
@@ -397,6 +414,7 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
         0,
         Nil,
         retrievals,
+        None,
         None
       )
       .futureValue

@@ -31,7 +31,6 @@ import uk.gov.hmrc.gform.controllers.{ AuthCacheWithForm, AuthenticatedRequestAc
 import uk.gov.hmrc.gform.fileupload.{ Envelope, FileUploadService }
 import uk.gov.hmrc.gform.gformbackend.GformConnector
 import uk.gov.hmrc.gform.keystore.RepeatingComponentService
-import uk.gov.hmrc.gform.sharedmodel
 import uk.gov.hmrc.gform.sharedmodel.form._
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
 import uk.gov.hmrc.gform.summary.SummaryRenderingService
@@ -43,6 +42,7 @@ import uk.gov.hmrc.play.frontend.controller.FrontendController
 
 import scala.concurrent.{ ExecutionContext, Future }
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.cache.client.CacheMap
 
 class SummaryController(
   i18nSupport: I18nSupport,
@@ -61,8 +61,10 @@ class SummaryController(
   def summaryById(formId: FormId, formTemplateId4Ga: FormTemplateId, lang: Option[String]): Action[AnyContent] =
     auth.async(formId) { implicit request => cache =>
       cache.form.status match {
-        case Summary | Validated | Signed => getSummaryHTML(formId, cache, lang).map(Ok(_))
-        case _                            => errResponder.notFound(request, "Summary was hit before status was changed.")
+        case Summary | Validated | Signed =>
+          getSummaryHTML(formId, cache, lang).map(Ok(_))
+        case _ =>
+          errResponder.notFound(request, "Summary was hit before status was changed.")
       }
     }
 
@@ -72,8 +74,9 @@ class SummaryController(
         val envelopeF = fileUploadService.getEnvelope(cache.form.envelopeId)
 
         val formFieldValidationResultsF = for {
-          envelope <- envelopeF
-          errors   <- validateForm(cache, envelope, cache.retrievals)
+          envelope    <- envelopeF
+          repeatCache <- repeatService.fetchSessionCache(cache.formTemplate)
+          errors      <- validateForm(cache, envelope, cache.retrievals, repeatCache)
         } yield errors
 
         val isFormValidF: Future[Boolean] = formFieldValidationResultsF.map(x => ValidationUtil.isFormValid(x._2))
@@ -85,20 +88,19 @@ class SummaryController(
           }
         lazy val redirectToSummary = Redirect(routes.SummaryController.summaryById(formId, formTemplateId4Ga, lang))
         lazy val handleDeclaration = for {
-          // format: OFF
-        result <- isFormValidF.ifM(
-          redirectToDeclaration,
-          redirectToSummary.pure[Future]
-        )
-        // format: ON
+          result <- isFormValidF.ifM(
+                     redirectToDeclaration,
+                     redirectToSummary.pure[Future]
+                   )
         } yield result
 
         get(data, FormComponentId("save")) match {
-          // format: OFF
-        case "Exit" :: Nil        => Ok(save_acknowledgement(formId, cache.formTemplate, totalPage, lang, frontendAppConfig)).pure[Future]
-        case "Declaration" :: Nil => handleDeclaration
-        case _                    => BadRequest("Cannot determine action").pure[Future]
-        // format: ON
+          case "Exit" :: Nil =>
+            Ok(save_acknowledgement(formId, cache.formTemplate, totalPage, lang, frontendAppConfig)).pure[Future]
+          case "Declaration" :: Nil =>
+            handleDeclaration
+          case _ =>
+            BadRequest("Cannot determine action").pure[Future]
         }
       }
     }
@@ -107,36 +109,41 @@ class SummaryController(
     auth.async(formId) { implicit request => cache =>
       cache.form.status match {
         case InProgress | Summary =>
-          // format: OFF
-        for {
-          summaryHml <- getSummaryHTML(formId, cache, lang)
-          htmlForPDF = pdfService.sanitiseHtmlForPDF(summaryHml)
-          pdfStream <- pdfService.generatePDF(htmlForPDF)
-        } yield Result(
-          header = ResponseHeader(200, Map.empty),
-          body = HttpEntity.Streamed(pdfStream, None, Some("application/pdf"))
-        )
-      // format: ON
+          for {
+            summaryHml <- getSummaryHTML(formId, cache, lang)
+            htmlForPDF = pdfService.sanitiseHtmlForPDF(summaryHml)
+            pdfStream  <- pdfService.generatePDF(htmlForPDF)
+          } yield
+            Result(
+              header = ResponseHeader(200, Map.empty),
+              body = HttpEntity.Streamed(pdfStream, None, Some("application/pdf"))
+            )
         case _ => Future.successful(BadRequest)
       }
     }
 
-  private def validateForm(cache: AuthCacheWithForm, envelope: Envelope, retrievals: Retrievals)(
+  private def validateForm(
+    cache: AuthCacheWithForm,
+    envelope: Envelope,
+    retrievals: Retrievals,
+    repeatCache: Option[CacheMap])(
     implicit hc: HeaderCarrier): Future[(ValidatedType, Map[FormComponent, FormFieldValidationResult])] = {
     val data = FormDataHelpers.formDataMap(cache.form.formData)
-    val sectionsF = repeatService.getAllSections(cache.formTemplate, data)
-    val filteredSections =
-      sectionsF.map(_.filter(x => BooleanExpr.isTrue(x.includeIf.map(_.expr).getOrElse(IsTrue), data, retrievals)))
-    for { // format: OFF
-      sections          <- filteredSections
-      allFields         =  sections.flatMap(repeatService.atomicFields)
-      v1                <- sections.map(x => validationService.validateForm(allFields, x, cache.form.envelopeId, retrievals)(data)).sequenceU.map(Monoid[ValidatedType].combineAll)
-      v                 =  Monoid.combine(
-                             v1,
-                             ValidationUtil.validateFileUploadHasScannedFiles(allFields, envelope)
-                           )
-      errors            = validationService.evaluateValidation(v, allFields, data, envelope).toMap
-      // format: ON
+    for {
+      repeatCache      <- repeatService.fetchSessionCache(cache.formTemplate)
+      sections         = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
+      filteredSections = sections.filter(x =>
+        BooleanExpr.isTrue(x.includeIf.map(_.expr).getOrElse(IsTrue), data, retrievals))
+      allFields        = filteredSections.flatMap(s => repeatService.atomicFields(s, repeatCache))
+      v1               <- filteredSections
+                          .map(x => validationService.validateForm(allFields, x, cache.form.envelopeId, retrievals)(data))
+                          .sequenceU
+                          .map(Monoid[ValidatedType].combineAll)
+      v                = Monoid.combine(
+                         v1,
+                         ValidationUtil.validateFileUploadHasScannedFiles(allFields, envelope)
+      )
+      errors           = validationService.evaluateValidation(v, allFields, data, envelope).toMap
     } yield (v, errors)
   }
 
@@ -145,11 +152,21 @@ class SummaryController(
     val data = FormDataHelpers.formDataMap(cache.form.formData)
     val envelopeF = fileUploadService.getEnvelope(cache.form.envelopeId)
 
-    // format: OFF
     for {
-      envelope          <- envelopeF
-      (v, _)            <- validateForm(cache, envelope, cache.retrievals)
-      result            <- SummaryRenderingService.renderSummary(cache.formTemplate, v, data, cache.retrievals, formId, repeatService, envelope, lang, frontendAppConfig)
+      envelope    <- envelopeF
+      repeatCache <- repeatService.fetchSessionCache(cache.formTemplate)
+      (v, _)      <- validateForm(cache, envelope, cache.retrievals, repeatCache)
+      result <- SummaryRenderingService.renderSummary(
+                 cache.formTemplate,
+                 v,
+                 data,
+                 cache.retrievals,
+                 formId,
+                 repeatService,
+                 envelope,
+                 repeatCache,
+                 lang,
+                 frontendAppConfig)
     } yield result
   }
 }

@@ -29,7 +29,6 @@ import uk.gov.hmrc.gform.controllers.AuthenticatedRequestActions
 import uk.gov.hmrc.gform.controllers.helpers.FormDataHelpers.{ formDataMap, get, processResponseDataFromBody }
 import uk.gov.hmrc.gform.fileupload.Envelope
 import uk.gov.hmrc.gform.gformbackend.GformConnector
-import uk.gov.hmrc.gform.keystore.RepeatingComponentService
 import uk.gov.hmrc.gform.sharedmodel.form._
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
 import uk.gov.hmrc.gform.summarypdf.PdfGeneratorService
@@ -46,7 +45,6 @@ class DeclarationController(
   auth: AuthenticatedRequestActions,
   gformConnector: GformConnector,
   auditService: AuditService,
-  repeatService: RepeatingComponentService,
   summaryController: SummaryController,
   pdfService: PdfGeneratorService,
   renderer: SectionRenderingService,
@@ -140,7 +138,6 @@ class DeclarationController(
                   _ <- if (config.sendPdfWithSubmission)
                         gformConnector.submitFormWithPdf(formId, customerId, htmlForPDF)
                       else { gformConnector.submitForm(formId, customerId) }
-                  _ <- repeatService.clearSession
                 } yield {
                   if (customerId.isEmpty)
                     Logger.warn(s"DMS submission with empty customerId ${loggingHelpers.cleanHeaderCarrierHeader(hc)}")

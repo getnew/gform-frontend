@@ -110,7 +110,6 @@ class GformModule(
     controllersModule.authenticatedRequestActions,
     gformBackendModule.gformConnector,
     auditingModule.auditService,
-    keystoreModule.repeatingComponentService,
     summaryController,
     pdfGeneratorModule.pdfGeneratorService,
     sectionRenderingService,
