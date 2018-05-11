@@ -140,7 +140,6 @@ class DeclarationController(
                   _ <- if (config.sendPdfWithSubmission)
                         gformConnector.submitFormWithPdf(formId, customerId, htmlForPDF)
                       else { gformConnector.submitForm(formId, customerId) }
-                  _ <- repeatService.clearSession
                 } yield {
                   if (customerId.isEmpty)
                     Logger.warn(s"DMS submission with empty customerId ${loggingHelpers.cleanHeaderCarrierHeader(hc)}")

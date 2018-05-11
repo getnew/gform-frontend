@@ -52,22 +52,17 @@ class FormController(
 
   import i18nSupport._
 
-  def newForm(formTemplateId: FormTemplateId, lang: Option[String]) = auth.async(formTemplateId) {
-    implicit request => cache =>
-      for {
-        (form, wasFormFound) <- getOrStartForm(
-                                 cache.formTemplate._id,
-                                 UserId(cache.retrievals.userDetails.groupIdentifier))
-      } yield {
-        if (wasFormFound) {
-          Ok(continue_form_page(cache.formTemplate, form._id, lang, frontendAppConfig))
-        } else {
-          val originSection = new Origin(cache.formTemplate.sections, cache.retrievals).minSectionNumber
-          Redirect(
-            routes.FormController
-              .form(form._id, cache.formTemplate._id, originSection, cache.formTemplate.sections.size, lang))
-        }
+  def newForm(formTemplateId: FormTemplateId, lang: Option[String]) = auth.async(formTemplateId) { implicit request => cache =>
+    for {
+      (form, wasFormFound) <- getOrStartForm(cache.formTemplate._id, UserId(cache.retrievals.userDetails.groupIdentifier))
+    } yield {
+      if (wasFormFound) {
+        Ok(continue_form_page(cache.formTemplate, form._id, lang, frontendAppConfig))
+      } else {
+        val originSection = new Origin(cache.formTemplate.sections, cache.retrievals).minSectionNumber
+        Redirect(routes.FormController.form(form._id, cache.formTemplate._id, originSection, cache.formTemplate.sections.size, lang))
       }
+    }
   }
 
   //true - it got the form, false - new form was created
@@ -75,11 +70,11 @@ class FormController(
     implicit hc: HeaderCarrier): Future[(Form, Boolean)] = {
     val formId = FormId(userId, formTemplateId)
 
-    def startForm: Future[Form] =
-      for {
-        formId <- gformConnector.newForm(formTemplateId, userId)
-        form   <- gformConnector.getForm(formId)
-      } yield form
+    def startForm: Future[Form] = for {
+      formId <- gformConnector.newForm(formTemplateId, userId)
+      _ <- repeatService.clearSession
+      form <- gformConnector.getForm(formId)
+    } yield form
 
     for {
       maybeForm <- gformConnector.maybeForm(formId)
