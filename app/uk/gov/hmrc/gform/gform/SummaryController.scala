@@ -19,7 +19,7 @@ package uk.gov.hmrc.gform.gform
 import cats._
 import cats.implicits._
 import play.api.i18n.I18nSupport
-import play.api.mvc.{ Action, AnyContent, Request }
+import play.api.mvc.{Action, AnyContent, Request}
 import play.api.http.HttpEntity
 import play.api.mvc._
 import play.twirl.api.Html
@@ -27,8 +27,8 @@ import uk.gov.hmrc.gform.auth.models.Retrievals
 import uk.gov.hmrc.gform.config.FrontendAppConfig
 import uk.gov.hmrc.gform.controllers.helpers.FormDataHelpers
 import uk.gov.hmrc.gform.controllers.helpers.FormDataHelpers._
-import uk.gov.hmrc.gform.controllers.{ AuthCacheWithForm, AuthenticatedRequestActions, ErrResponder }
-import uk.gov.hmrc.gform.fileupload.{ Envelope, FileUploadService }
+import uk.gov.hmrc.gform.controllers.{AuthCacheWithForm, AuthenticatedRequestActions, ErrResponder}
+import uk.gov.hmrc.gform.fileupload.{Envelope, FileUploadService}
 import uk.gov.hmrc.gform.gformbackend.GformConnector
 import uk.gov.hmrc.gform.keystore.RepeatingComponentService
 import uk.gov.hmrc.gform.sharedmodel
@@ -37,12 +37,13 @@ import uk.gov.hmrc.gform.sharedmodel.formtemplate._
 import uk.gov.hmrc.gform.summary.SummaryRenderingService
 import uk.gov.hmrc.gform.summarypdf.PdfGeneratorService
 import uk.gov.hmrc.gform.validation.ValidationUtil.ValidatedType
-import uk.gov.hmrc.gform.validation.{ FormFieldValidationResult, ValidationService, ValidationUtil }
+import uk.gov.hmrc.gform.validation.{FormFieldValidationResult, ValidationService, ValidationUtil}
 import uk.gov.hmrc.gform.views.html.hardcoded.pages.save_acknowledgement
 import uk.gov.hmrc.play.frontend.controller.FrontendController
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.cache.client.CacheMap
 
 class SummaryController(
   i18nSupport: I18nSupport,
@@ -121,10 +122,10 @@ class SummaryController(
       }
     }
 
-  private def validateForm(cache: AuthCacheWithForm, envelope: Envelope, retrievals: Retrievals)(
+  private def validateForm(cache: AuthCacheWithForm, envelope: Envelope, retrievals: Retrievals, repeatCache: Option[CacheMap])(
     implicit hc: HeaderCarrier): Future[(ValidatedType, Map[FormComponent, FormFieldValidationResult])] = {
     val data = FormDataHelpers.formDataMap(cache.form.formData)
-    val sectionsF = repeatService.getAllSections(cache.formTemplate, data)
+    val sectionsF = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
     val filteredSections =
       sectionsF.map(_.filter(x => BooleanExpr.isTrue(x.includeIf.map(_.expr).getOrElse(IsTrue), data, retrievals)))
     for { // format: OFF

@@ -86,6 +86,7 @@ class SectionRenderingService(
     formMaxAttachmentSizeMB: Int,
     contentTypes: List[ContentType],
     retrievals: Retrievals,
+                   repeatCache: Option[CacheMap],
     lang: Option[String]
   )(implicit hc: HeaderCarrier, request: Request[_], messages: Messages): Future[Html] = {
 
@@ -120,7 +121,7 @@ class SectionRenderingService(
                                   fieldValue.onlyShowOnSummary)))
       javascript <- createJavascript(
                      dynamicSections.flatMap(_.fields),
-                     dynamicSections.flatMap(repeatService.atomicFields))
+                     dynamicSections.flatMap(repeatService.atomicFields), repeatCache)
       hiddenTemplateFields = Fields.getFields(section, dynamicSections, repeatService)
       hiddenSnippets = Fields
         .toFormField(fieldData, hiddenTemplateFields)
@@ -348,7 +349,7 @@ class SectionRenderingService(
     } yield html.form.form(formTemplate, pageLevelErrorHtml, renderingInfo, formId, false, false, frontendAppConfig)
   }
 
-  private def createJavascript(fieldList: List[FormComponent], atomicFields: List[FormComponent])(
+  private def createJavascript(fieldList: List[FormComponent], atomicFields: List[FormComponent], repeatCache: Option[CacheMap])(
     implicit hc: HeaderCarrier): Future[String] = {
     val groups: List[(FormComponentId, Group)] = fieldList
       .filter(_.presentationHint.getOrElse(Nil).contains(CollapseGroupUnderLabel))
@@ -357,13 +358,13 @@ class SectionRenderingService(
         case (fieldId, group: Group) => (fieldId, group)
       }
 
-    val cacheMap: Future[CacheMap] = repeatService.getAllRepeatingGroups
-    val repeatingSections: Future[List[List[List[FormComponent]]]] =
-      Future.sequence(fieldList.map(fv => (fv.id, fv.`type`)).collect {
+    val cacheMap: CacheMap = repeatService.getAllRepeatingGroups(repeatCache)
+    val repeatingSections: List[List[List[FormComponent]]] =
+      fieldList.map(fv => (fv.id, fv.`type`)).collect {
         case (fieldId, group: Group) =>
-          cacheMap.map(_.getEntry[RepeatingGroup](fieldId.value).map(_.list).getOrElse(Nil))
-      })
-    fieldJavascript(atomicFields, repeatingSections).flatMap { x =>
+          cacheMap.getEntry[RepeatingGroup](fieldId.value).map(_.list).getOrElse(Nil)
+      }
+    fieldJavascript(atomicFields, Future.successful(repeatingSections)).flatMap { x =>
       Future
         .sequence(groups.map { case (fieldId, group) => Future.successful(collapsingGroupJavascript(fieldId, group)) })
         .map(_.mkString("\n"))
@@ -516,6 +517,7 @@ class SectionRenderingService(
     index: Int,
     validatedType: Option[ValidatedType],
     ei: ExtraInfo,
+    repeatCache: Option[CacheMap],
     isHidden: Boolean)(implicit hc: HeaderCarrier) = {
     def scale = t.constraint match {
       case Number(_, maxFractionalDigits, _)         => Some(maxFractionalDigits)
@@ -543,7 +545,7 @@ class SectionRenderingService(
 
     val prepopValueF = ei.fieldData.get(fieldValue.id) match {
       case None | Some(List("")) => {
-        prepopService.prepopData(expr, ei.formTemplate, ei.retrievals, ei.fieldData, ei.section, scale)
+        prepopService.prepopData(expr, ei.formTemplate, ei.retrievals, ei.fieldData, repeatCache, ei.section, scale)
       }
       case _ => Future.successful("") // Don't prepop something we already submitted
     }
@@ -561,9 +563,10 @@ class SectionRenderingService(
     index: Int,
     validatedType: Option[ValidatedType],
     ei: ExtraInfo,
+    repeatCache: Option[CacheMap],
     isHidden: Boolean)(implicit hc: HeaderCarrier) = {
     val prepopValueF: Future[String] = ei.fieldData.get(fieldValue.id) match {
-      case None => prepopService.prepopData(expr, ei.formTemplate, ei.retrievals, ei.fieldData, ei.section)
+      case None => prepopService.prepopData(expr, ei.formTemplate, ei.retrievals, ei.fieldData, repeatCache, ei.section)
       case _    => Future.successful("") // Don't prepop something we already submitted
     }
     val validatedValue = buildFormFieldValidationResult(fieldValue, ei, validatedType)
@@ -675,12 +678,13 @@ class SectionRenderingService(
     orientation: Orientation,
     validatedType: Option[ValidatedType],
     ei: ExtraInfo,
+    repeatCache: Option[CacheMap],
     lang: Option[String])(
     implicit hc: HeaderCarrier,
     request: Request[_],
     messsages: Messages): Future[(List[Html], Boolean)] =
     if (groupField.repeatsMax.isDefined) {
-      repeatService.getRepeatingGroupsForRendering(fieldValue, groupField).flatMap {
+      repeatService.getRepeatingGroupsForRendering(fieldValue, groupField, repeatCache).flatMap {
         case (groupList, isLimit) =>
           Future
             .sequence((1 to groupList.size).map { count =>

@@ -70,12 +70,13 @@ object SummaryRenderingService {
     formTemplate: FormTemplate,
     repeatService: RepeatingComponentService,
     envelope: Envelope,
+    repeatCache: Option[CacheMap],
     lang: Option[String]
   )(
     implicit
     hc: HeaderCarrier,
     ec: ExecutionContext): Future[SummaryForRender] =
-    repeatService.getAllSections(formTemplate, data).flatMap { sections =>
+    repeatService.getAllSections(formTemplate, data, repeatCache).flatMap { sections =>
       val fields: List[FormComponent] = sections.flatMap(repeatService.atomicFields)
 
       def validate(formComponent: FormComponent): Option[FormFieldValidationResult] = {
@@ -181,13 +182,13 @@ object SummaryRenderingService {
           })
           .map(x => x.flatten) //TODO ask a better way to do this.
       }
-      val cacheMap: Future[CacheMap] = repeatService.getAllRepeatingGroups
-      val repeatingGroups: Future[List[List[List[FormComponent]]]] =
-        Future.sequence(sections.flatMap(_.fields).map(fv => (fv.id, fv.`type`)).collect {
+      val cacheMap: CacheMap = repeatService.getAllRepeatingGroups(repeatCache)
+      val repeatingGroups: List[List[List[FormComponent]]] =
+        sections.flatMap(_.fields).map(fv => (fv.id, fv.`type`)).collect {
           case (fieldId, group: Group) =>
-            cacheMap.map(_.getEntry[RepeatingGroup](fieldId.value).map(_.list).getOrElse(Nil))
-        })
-      fieldJavascript(fields, repeatingGroups)
+            cacheMap.getEntry[RepeatingGroup](fieldId.value).map(_.list).getOrElse(Nil)
+        }
+      fieldJavascript(fields, Future.successful(repeatingGroups))
         .flatMap(javascript => snippetsF.map(snippets => SummaryForRender(snippets, Html(javascript), sections.size)))
     }
 }
