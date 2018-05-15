@@ -107,7 +107,7 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
       FormComponentId("repeatingSectionDriver")   -> Seq("ONE"),
       FormComponentId("1_repeatingSectionDriver") -> Seq("TWO"))
 
-    testService.getAllSections(formTemplate, formData, None).futureValue shouldBe expectedList
+    testService.getAllSections(formTemplate, formData, Some(mockCache)).futureValue shouldBe expectedList
   }
 
   it should "return a dynamically created section when field to track in a NON-repeating group" in {

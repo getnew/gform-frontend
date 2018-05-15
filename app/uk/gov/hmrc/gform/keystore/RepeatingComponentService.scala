@@ -58,24 +58,23 @@ class RepeatingComponentService(
   def getAllSections(
     formTemplate: FormTemplate,
     data: Map[FormComponentId, Seq[String]],
-    sessionCacheMap: Option[CacheMap])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[List[Section]] = {
-    val x = 0
-    val xx = x
+    sessionCacheMap: Option[CacheMap])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[List[Section]] =
     Future
-      .sequence(formTemplate.sections.map { section => {
-        val x = 0
-        val xx = x
-        if (isRepeatingSection(section)) {
-          val x = 0
-          val xx = x
-          generateDynamicSections(section, formTemplate, data, getAllRepeatingGroups(sessionCacheMap), sessionCacheMap)
-        } else {
-          Future.successful(List(section))
+      .sequence(formTemplate.sections.map { section =>
+        {
+          if (isRepeatingSection(section)) {
+            generateDynamicSections(
+              section,
+              formTemplate,
+              data,
+              getAllRepeatingGroups(sessionCacheMap),
+              sessionCacheMap)
+          } else {
+            Future.successful(List(section))
+          }
         }
-      }
       })
       .map(_.flatten)
-  }
 
   def getAllRepeatingGroups(sessionCacheMap: Option[CacheMap]): CacheMap =
     sessionCacheMap.getOrElse(CacheMap("Empty", Map.empty))
@@ -92,8 +91,6 @@ class RepeatingComponentService(
     for {
       count <- countF
     } yield {
-      val x = 0
-      val xx = x
       (1 to count).map { i =>
         copySection(section, i, data, cacheMap)
       }.toList
