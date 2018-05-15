@@ -16,23 +16,25 @@
 
 package uk.gov.hmrc.gform.gform
 
-import cats.data.Validated.{ Invalid, Valid }
+import cats.data.Validated.{Invalid, Valid}
 import play.api.i18n.I18nSupport
-import play.api.mvc.{ Action, Request, Result }
-import uk.gov.hmrc.gform.auth.{ Identifier, Verifier, _ }
+import play.api.mvc.{Action, Request, Result}
+import uk.gov.hmrc.gform.auth.{Identifier, Verifier, _}
 import uk.gov.hmrc.gform.config.AppConfig
 import uk.gov.hmrc.gform.controllers.AuthenticatedRequestActions
-import uk.gov.hmrc.gform.controllers.helpers.FormDataHelpers.{ get, processResponseDataFromBody }
+import uk.gov.hmrc.gform.controllers.helpers.FormDataHelpers.{get, processResponseDataFromBody}
 import uk.gov.hmrc.gform.fileupload.Envelope
 import uk.gov.hmrc.gform.gformbackend.GformConnector
+import uk.gov.hmrc.gform.keystore.RepeatingComponentService
 import uk.gov.hmrc.gform.sharedmodel.form.EnvelopeId
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
-import uk.gov.hmrc.gform.validation.{ FormFieldValidationResult, ValidationService }
+import uk.gov.hmrc.gform.validation.{FormFieldValidationResult, ValidationService}
 import uk.gov.hmrc.gform.validation.ValidationUtil.ValidatedType
 import uk.gov.hmrc.play.frontend.controller.FrontendController
 
 import scala.concurrent.Future
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.cache.client.CacheMap
 
 class EnrolmentController(
   i18nSupport: I18nSupport,
@@ -41,6 +43,7 @@ class EnrolmentController(
   validationService: ValidationService,
   gformConnector: GformConnector,
   enrolmentService: EnrolmentService,
+  repeatService: RepeatingComponentService,
   appConfig: AppConfig
 ) extends FrontendController {
 
@@ -50,9 +53,11 @@ class EnrolmentController(
     gformConnector.getFormTemplate(formTemplateId).flatMap { formTemplate =>
       formTemplate.authConfig match {
         case authConfig: AuthConfigWithEnrolment =>
-          renderer
-            .renderEnrolmentSection(formTemplate, authConfig.enrolmentSection, Map.empty, Nil, None, lang)
-            .map(Ok(_))
+          repeatService.fetchSessionCache.flatMap { repeatCache =>
+            renderer
+              .renderEnrolmentSection(formTemplate, authConfig.enrolmentSection, Map.empty, Nil, None, repeatCache, lang)
+              .map(Ok(_))
+          }
         case _ =>
           Future.successful(
             Redirect(uk.gov.hmrc.gform.auth.routes.ErrorController.insufficientEnrolments())
@@ -74,7 +79,9 @@ class EnrolmentController(
 
               get(data, FormComponentId("save")) match {
                 case "Continue" :: Nil =>
-                  validationResultF.flatMap(processValidation(formTemplate, authConfig, data, lang))
+                  repeatService.fetchSessionCache.flatMap { repeatCache =>
+                    validationResultF.flatMap(processValidation(formTemplate, authConfig, data, repeatCache, lang))
+                  }
                 case _ =>
                   Future.successful(BadRequest("Cannot determine action"))
               }
@@ -92,6 +99,7 @@ class EnrolmentController(
     formTemplate: FormTemplate,
     authConfig: AuthConfigWithEnrolment,
     data: Map[FormComponentId, Seq[String]],
+    repeatCache: Option[CacheMap],
     lang: Option[String]
   )(validationResult: ValidatedType)(implicit hc: HeaderCarrier, request: Request[_]): Future[Result] =
     validationResult match {
@@ -110,7 +118,7 @@ class EnrolmentController(
           .recoverWith(handleEnrolmentException(authConfig, data, formTemplate, lang))
 
       case validationResult @ Invalid(_) =>
-        displayEnrolmentSectionWithErrors(validationResult, data, authConfig, formTemplate, lang)
+        displayEnrolmentSectionWithErrors(validationResult, data, authConfig, formTemplate, repeatCache, lang)
     }
 
   private def getErrorMap(
@@ -157,6 +165,7 @@ class EnrolmentController(
     data: Map[FormComponentId, Seq[String]],
     authConfig: AuthConfigWithEnrolment,
     formTemplate: FormTemplate,
+    repeatCache: Option[CacheMap],
     lang: Option[String]
   )(implicit hc: HeaderCarrier, request: Request[_]): Future[Result] = {
 
@@ -168,6 +177,7 @@ class EnrolmentController(
                data,
                errorMap,
                Some(validationResult),
+        repeatCache,
                lang)
     } yield Ok(html)
   }

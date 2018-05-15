@@ -20,10 +20,11 @@ import uk.gov.hmrc.gform.fileupload.Envelope
 import uk.gov.hmrc.gform.keystore.RepeatingComponentService
 import uk.gov.hmrc.gform.models._
 import uk.gov.hmrc.gform.sharedmodel.form.FormField
-import uk.gov.hmrc.gform.sharedmodel.formtemplate.{ FormComponentId, _ }
+import uk.gov.hmrc.gform.sharedmodel.formtemplate.{FormComponentId, _}
 import uk.gov.hmrc.gform.validation.ValidationUtil.ValidatedType
 import uk.gov.hmrc.gform.validation._
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.cache.client.CacheMap
 
 import scala.concurrent.ExecutionContext
 
@@ -165,7 +166,8 @@ object Fields {
   def getFields(
     currentSection: Section,
     dynamicSections: List[Section],
-    repeatingComponentService: RepeatingComponentService)(
+    repeatingComponentService: RepeatingComponentService,
+    repeatCache: Option[CacheMap])(
     implicit hc: HeaderCarrier,
     ec: ExecutionContext): List[FormComponent] = {
     def isTotalValue(maybe: Option[List[PresentationHint]]): Boolean =
@@ -178,6 +180,6 @@ object Fields {
       .filterNot(_ == currentSection) :+ currentSection.copy(fields = renderFields)
 
     renderList
-      .flatMap(repeatingComponentService.atomicFields)
+      .flatMap(s => repeatingComponentService.atomicFields(s, repeatCache))
   }
 }

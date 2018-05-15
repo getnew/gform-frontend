@@ -61,6 +61,7 @@ class GformModule(
     validationModule.validationService,
     gformBackendModule.gformConnector,
     authModule.enrolmentService,
+    keystoreModule.repeatingComponentService,
     configModule.appConfig
   )
 
@@ -95,6 +96,7 @@ class GformModule(
     sectionRenderingService,
     summaryController,
     authModule.authService,
+    keystoreModule.repeatingComponentService,
     gformBackendModule.gformConnector,
     new NonRepudiationHelpers(auditingModule)
   )

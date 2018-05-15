@@ -115,7 +115,9 @@ class DeclarationController(
 
   def submitDeclaration(formTemplateId4Ga: FormTemplateId, formId: FormId, lang: Option[String]) = auth.async(formId) {
     implicit request => cache =>
-      processResponseDataFromBody(request) { (data: Map[FormComponentId, Seq[String]]) =>
+
+      def submitDeclaration(repeatCache: Option[CacheMap]) : Future[Result] =
+        processResponseDataFromBody(request) { (data: Map[FormComponentId, Seq[String]]) =>
         val validationResultF = validationService.validateComponents(
           getAllDeclarationFields(cache.formTemplate.declarationSection.fields),
           data,
@@ -135,7 +137,7 @@ class DeclarationController(
                                  formDataMap(updatedForm.formData))
                   _ <- gformConnector.updateUserData(cache.form._id, UserData(updatedForm.formData, None, Signed))
                   //todo perhaps not make these calls at all if the feature flag is false?
-                  summaryHml <- summaryController.getSummaryHTML(formId, cache, lang)
+                  summaryHml <- summaryController.getSummaryHTML(formId, cache, repeatCache, lang)
                   cleanHtml = pdfService.sanitiseHtmlForPDF(summaryHml)
                   htmlForPDF = addExtraDataToHTML(
                     cleanHtml,
@@ -178,6 +180,8 @@ class DeclarationController(
             Future.successful(BadRequest("Cannot determine action"))
         }
       }
+
+        repeatService.fetchSessionCache.flatMap( repeatCache => submitDeclaration(repeatCache))
   }
 
   private def updateFormWithDeclaration(
