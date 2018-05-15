@@ -61,7 +61,16 @@ object SummaryRenderingService {
     messages: Messages,
     hc: HeaderCarrier,
     ec: ExecutionContext): Future[Html] =
-    summaryForRender(validatedType, formFields, retrievals, formId, formTemplate, repeatService, envelope, repeatCache, lang)
+    summaryForRender(
+      validatedType,
+      formFields,
+      retrievals,
+      formId,
+      formTemplate,
+      repeatService,
+      envelope,
+      repeatCache,
+      lang)
       .map(s => summary(formTemplate, s, formId, formTemplate.formCategory.getOrElse(Default), lang, frontendAppConfig))
 
   def summaryForRender(

@@ -21,7 +21,7 @@ import java.time.format.DateTimeFormatter
 import org.jsoup.Jsoup
 import play.api.http.HttpEntity
 import play.api.i18n.I18nSupport
-import play.api.mvc.{Action, AnyContent, ResponseHeader, Result}
+import play.api.mvc.{ Action, AnyContent, ResponseHeader, Result }
 import uk.gov.hmrc.gform.auth.AuthService
 import uk.gov.hmrc.gform.auth.models.Retrievals
 import uk.gov.hmrc.gform.auth.models.Retrievals.getTaxIdValue
@@ -30,7 +30,7 @@ import uk.gov.hmrc.gform.controllers.helpers.FormDataHelpers
 import uk.gov.hmrc.gform.gformbackend.GformConnector
 import uk.gov.hmrc.gform.keystore.RepeatingComponentService
 import uk.gov.hmrc.gform.nonRepudiation.NonRepudiationHelpers
-import uk.gov.hmrc.gform.sharedmodel.form.{FormId, Submitted}
+import uk.gov.hmrc.gform.sharedmodel.form.{ FormId, Submitted }
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
 import uk.gov.hmrc.gform.submission.Submission
 import uk.gov.hmrc.gform.summarypdf.PdfGeneratorService
@@ -60,7 +60,13 @@ class AcknowledgementController(
         case Submitted =>
           repeatService.fetchSessionCache.flatMap { repeatCache =>
             renderer
-              .renderAcknowledgementSection(cache.form, cache.formTemplate, cache.retrievals, repeatCache, lang, eventId)
+              .renderAcknowledgementSection(
+                cache.form,
+                cache.formTemplate,
+                cache.retrievals,
+                repeatCache,
+                lang,
+                eventId)
               .map(Ok(_))
           }
         case _ => Future.successful(BadRequest)

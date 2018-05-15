@@ -343,8 +343,18 @@ class SectionRenderingService(
       emptyRetrievals)
     val listResult = errors.map { case (_, validationResult) => validationResult }
     for {
-      snippets <- Future.sequence(enrolmentSection.fields.map(fieldValue =>
-                   htmlFor(fieldValue, formTemplate._id, 0, ei, formTemplate.sections.size, validatedType, lang, repeatCache)))
+      snippets <- Future.sequence(
+                   enrolmentSection.fields.map(
+                     fieldValue =>
+                       htmlFor(
+                         fieldValue,
+                         formTemplate._id,
+                         0,
+                         ei,
+                         formTemplate.sections.size,
+                         validatedType,
+                         lang,
+                         repeatCache)))
       pageLevelErrorHtml = generatePageLevelErrorHtml(listResult)
       renderingInfo = SectionRenderingInformation(
         formId,
@@ -411,7 +421,17 @@ class SectionRenderingService(
       case t @ Text(_, expr) => htmlForText(fieldValue, t, expr, index, maybeValidated, ei, isHidden)
       case TextArea          => Future.successful(htmlForTextArea(fieldValue, index, maybeValidated, ei, isHidden))
       case Choice(choice, options, orientation, selections, optionalHelpText) =>
-        htmlForChoice(fieldValue, choice, options, orientation, selections, optionalHelpText, index, maybeValidated, ei, repeatCache)
+        htmlForChoice(
+          fieldValue,
+          choice,
+          options,
+          orientation,
+          selections,
+          optionalHelpText,
+          index,
+          maybeValidated,
+          ei,
+          repeatCache)
           .pure[Future]
       case FileUpload() =>
         Future.successful(
@@ -632,7 +652,7 @@ class SectionRenderingService(
     index: Int,
     validatedType: Option[ValidatedType],
     ei: ExtraInfo,
-      repeatCache: Option[CacheMap]
+    repeatCache: Option[CacheMap]
   )(implicit hc: HeaderCarrier) =
     html.form.snippets.field_template_address(
       international,
@@ -772,7 +792,8 @@ class SectionRenderingService(
     }
     val section = ei.dynamicSections(ei.sectionNumber.value)
     lazy val okF: FormComponent => Option[FormFieldValidationResult] =
-      Fields.getValidationResult(ei.fieldData, repeatService.atomicFields(section, repeatCache), ei.envelope, gformErrors)
+      Fields
+        .getValidationResult(ei.fieldData, repeatService.atomicFields(section, repeatCache), ei.envelope, gformErrors)
     okF(fieldValue)
   }
 

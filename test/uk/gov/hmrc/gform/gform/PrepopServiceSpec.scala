@@ -38,12 +38,13 @@ class PrepopServiceSpec extends Spec with ExampleData {
   }
 
   val mockRepeatingGroupService = new RepeatingComponentService(null, null) {
-    override def atomicFields(
-      section: BaseSection)(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] =
+    override def atomicFields(section: BaseSection, sessionCache: Option[CacheMap])(
+      implicit hc: HeaderCarrier,
+      ec: ExecutionContext): List[FormComponent] =
       `section - about you`.fields
 
-    override def getAllRepeatingGroups(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[CacheMap] =
-      Future.successful(CacheMap("SOMESESSIONID", Map("Hello" -> Json.toJson(List(`section - about you`.fields)))))
+    override def getAllRepeatingGroups(sessionCacheMap: Option[CacheMap]): CacheMap =
+      CacheMap("SOMESESSIONID", Map("Hello" -> Json.toJson(List(`section - about you`.fields))))
   }
 
   val prepopService =
@@ -67,7 +68,7 @@ class PrepopServiceSpec extends Spec with ExampleData {
   }
 
   def call(expr: Expr, authContext: Retrievals = authContext) =
-    prepopService.prepopData(expr, formTemplate, authContext, rawDataFromBrowser, `section - about you`)
+    prepopService.prepopData(expr, formTemplate, authContext, rawDataFromBrowser, None, `section - about you`)
 
   implicit lazy val hc = HeaderCarrier()
 }

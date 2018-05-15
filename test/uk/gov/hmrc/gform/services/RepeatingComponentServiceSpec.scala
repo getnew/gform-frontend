@@ -43,7 +43,7 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
 
     val testService = new RepeatingComponentService(testSessionCacheConnector, null)
 
-    testService.getAllSections(formTemplate, Map.empty).futureValue shouldBe List(`section - group`)
+    testService.getAllSections(formTemplate, Map.empty, None).futureValue shouldBe List(`section - group`)
   }
 
   it should "return no dynamically created sections when field in repeatsMax expression in repeating group and no form data" in {
@@ -59,7 +59,7 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
 
     val expectedList = List(`section - group`)
 
-    testService.getAllSections(formTemplate, Map.empty).futureValue shouldBe expectedList
+    testService.getAllSections(formTemplate, Map.empty, None).futureValue shouldBe expectedList
   }
 
   it should "return dynamically created sections (title and shortName text built dynamically) when field to track in repeating group, and non-empty form data" in {
@@ -107,7 +107,7 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
       FormComponentId("repeatingSectionDriver")   -> Seq("ONE"),
       FormComponentId("1_repeatingSectionDriver") -> Seq("TWO"))
 
-    testService.getAllSections(formTemplate, formData).futureValue shouldBe expectedList
+    testService.getAllSections(formTemplate, formData, None).futureValue shouldBe expectedList
   }
 
   it should "return a dynamically created section when field to track in a NON-repeating group" in {
@@ -134,7 +134,7 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
 
     val formData = Map(`fieldId - firstName` -> Seq("1"))
 
-    testService.getAllSections(formTemplate, formData).futureValue shouldBe expectedList
+    testService.getAllSections(formTemplate, formData, None).futureValue shouldBe expectedList
   }
 
   it should "return dynamically created sections (title and shortName text built dynamically) when field to track in a NON-repeating group, with form data" in {
@@ -161,6 +161,6 @@ class RepeatingComponentServiceSpec extends Spec with ExampleData {
 
     val formData = Map(`fieldId - firstName` -> Seq("2"))
 
-    testService.getAllSections(formTemplate, formData).futureValue shouldBe expectedList
+    testService.getAllSections(formTemplate, formData, None).futureValue shouldBe expectedList
   }
 }
