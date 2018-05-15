@@ -21,19 +21,21 @@ import java.time.format.DateTimeFormatter
 import org.jsoup.Jsoup
 import play.api.http.HttpEntity
 import play.api.i18n.I18nSupport
-import play.api.mvc.{ Action, AnyContent, ResponseHeader, Result }
+import play.api.mvc.{Action, AnyContent, ResponseHeader, Result}
 import uk.gov.hmrc.gform.auth.AuthService
 import uk.gov.hmrc.gform.auth.models.Retrievals
 import uk.gov.hmrc.gform.auth.models.Retrievals.getTaxIdValue
 import uk.gov.hmrc.gform.controllers.AuthenticatedRequestActions
 import uk.gov.hmrc.gform.controllers.helpers.FormDataHelpers
 import uk.gov.hmrc.gform.gformbackend.GformConnector
+import uk.gov.hmrc.gform.keystore.RepeatingComponentService
 import uk.gov.hmrc.gform.nonRepudiation.NonRepudiationHelpers
-import uk.gov.hmrc.gform.sharedmodel.form.{ FormId, Submitted }
+import uk.gov.hmrc.gform.sharedmodel.form.{FormId, Submitted}
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
 import uk.gov.hmrc.gform.submission.Submission
 import uk.gov.hmrc.gform.summarypdf.PdfGeneratorService
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.cache.client.CacheMap
 import uk.gov.hmrc.play.frontend.controller.FrontendController
 
 import scala.concurrent.Future
@@ -45,6 +47,7 @@ class AcknowledgementController(
   renderer: SectionRenderingService,
   summaryController: SummaryController, //TODO: does really one controller cannot exist without another one?
   authService: AuthService,
+  repeatService: RepeatingComponentService,
   gformConnector: GformConnector,
   nonRepudiationHelpers: NonRepudiationHelpers
 ) extends FrontendController {
@@ -55,9 +58,11 @@ class AcknowledgementController(
     auth.async(formId) { implicit request => cache =>
       cache.form.status match {
         case Submitted =>
-          renderer
-            .renderAcknowledgementSection(cache.form, cache.formTemplate, cache.retrievals, lang, eventId)
-            .map(Ok(_))
+          repeatService.fetchSessionCache.flatMap { repeatCache =>
+            renderer
+              .renderAcknowledgementSection(cache.form, cache.formTemplate, cache.retrievals, repeatCache, lang, eventId)
+              .map(Ok(_))
+          }
         case _ => Future.successful(BadRequest)
       }
     }
@@ -71,7 +76,8 @@ class AcknowledgementController(
       case Submitted =>
         // format: OFF
         for {
-          summaryHml  <- summaryController.getSummaryHTML(formId, cache, lang)
+          repeatCache <- repeatService.fetchSessionCache
+          summaryHml  <- summaryController.getSummaryHTML(formId, cache, repeatCache, lang)
           formString  =  nonRepudiationHelpers.formDataToJson(cache.form)
           hashedValue =  nonRepudiationHelpers.computeHash(formString)
           _           =  nonRepudiationHelpers.sendAuditEvent(hashedValue, formString, eventId)

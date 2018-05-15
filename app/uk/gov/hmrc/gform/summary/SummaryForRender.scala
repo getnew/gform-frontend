@@ -52,6 +52,7 @@ object SummaryRenderingService {
     formId: FormId,
     repeatService: RepeatingComponentService,
     envelope: Envelope,
+    repeatCache: Option[CacheMap],
     lang: Option[String],
     frontendAppConfig: FrontendAppConfig
   )(
@@ -60,7 +61,7 @@ object SummaryRenderingService {
     messages: Messages,
     hc: HeaderCarrier,
     ec: ExecutionContext): Future[Html] =
-    summaryForRender(validatedType, formFields, retrievals, formId, formTemplate, repeatService, envelope, lang)
+    summaryForRender(validatedType, formFields, retrievals, formId, formTemplate, repeatService, envelope, repeatCache, lang)
       .map(s => summary(formTemplate, s, formId, formTemplate.formCategory.getOrElse(Default), lang, frontendAppConfig))
 
   def summaryForRender(
@@ -78,7 +79,7 @@ object SummaryRenderingService {
     hc: HeaderCarrier,
     ec: ExecutionContext): Future[SummaryForRender] =
     repeatService.getAllSections(formTemplate, data, repeatCache).flatMap { sections =>
-      val fields: List[FormComponent] = sections.flatMap(repeatService.atomicFields)
+      val fields: List[FormComponent] = sections.flatMap(s => repeatService.atomicFields(s, repeatCache))
 
       def validate(formComponent: FormComponent): Option[FormFieldValidationResult] = {
         val gformErrors = validatedType match {
