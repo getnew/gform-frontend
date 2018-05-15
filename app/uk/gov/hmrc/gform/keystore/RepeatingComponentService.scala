@@ -37,11 +37,8 @@ class RepeatingComponentService(
       isRepeatingSection(s) || hasRepeatingGroup(s.fields)
     }
 
-  private def isRepeatingSection(section: Section): Boolean = {
-    val x = 0
-    val vv = x
+  private def isRepeatingSection(section: Section): Boolean =
     section.repeatsMax.isDefined && section.repeatsMin.isDefined
-  }
 
   private def hasRepeatingGroup(fields: Seq[FormComponent]): Boolean =
     fields.exists(f =>
@@ -343,7 +340,7 @@ class RepeatingComponentService(
           y.structure.foreach(x =>
             x._2.asOpt[RepeatingGroup] match {
               case Some(z) => sessionCache.cache[RepeatingGroup](x._1, z)
-              case None => Map.empty
+              case None    => Map.empty
           })
       ))
 
@@ -489,7 +486,7 @@ class RepeatingComponentService(
                     (first +: fields.tail).flatten
                   }
                 case DeclarationSection(_, _, _, _) => atomicFields(groupField.fields)
-                case _ => None
+                case _                              => None
               }
             case _ => List(fv)
           }
