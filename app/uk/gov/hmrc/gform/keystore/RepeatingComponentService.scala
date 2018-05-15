@@ -343,6 +343,7 @@ class RepeatingComponentService(
           y.structure.foreach(x =>
             x._2.asOpt[RepeatingGroup] match {
               case Some(z) => sessionCache.cache[RepeatingGroup](x._1, z)
+              case None => Map.empty
           })
       ))
 
@@ -488,6 +489,7 @@ class RepeatingComponentService(
                     (first +: fields.tail).flatten
                   }
                 case DeclarationSection(_, _, _, _) => atomicFields(groupField.fields)
+                case _ => None
               }
             case _ => List(fv)
           }
