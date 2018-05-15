@@ -69,39 +69,45 @@ class SummaryController(
 
   def submit(formId: FormId, formTemplateId4Ga: FormTemplateId, totalPage: Int, lang: Option[String]) =
     auth.async(formId) { implicit request => cache =>
-      processResponseDataFromBody(request) { (data: Map[FormComponentId, Seq[String]]) =>
-        val envelopeF = fileUploadService.getEnvelope(cache.form.envelopeId)
 
-        val formFieldValidationResultsF = for {
-          envelope <- envelopeF
-          errors   <- validateForm(cache, envelope, cache.retrievals)
-        } yield errors
+      def submit( repeatCache: Option[CacheMap]) : Future[Result] = {
+        processResponseDataFromBody(request) { (data: Map[FormComponentId, Seq[String]]) =>
+          val envelopeF = fileUploadService.getEnvelope(cache.form.envelopeId)
 
-        val isFormValidF: Future[Boolean] = formFieldValidationResultsF.map(x => ValidationUtil.isFormValid(x._2))
+          val formFieldValidationResultsF = for {
+            envelope <- envelopeF
+            errors <- validateForm(cache, envelope, cache.retrievals, repeatCache)
+          } yield errors
 
-        lazy val redirectToDeclaration = gformConnector
-          .updateUserData(formId, UserData(cache.form.formData, cache.form.repeatingGroupStructure, Validated))
-          .map { _ =>
-            Redirect(routes.DeclarationController.showDeclaration(formId, formTemplateId4Ga, lang))
+          val isFormValidF: Future[Boolean] = formFieldValidationResultsF.map(x => ValidationUtil.isFormValid(x._2))
+
+          lazy val redirectToDeclaration = gformConnector
+            .updateUserData(formId, UserData(cache.form.formData, cache.form.repeatingGroupStructure, Validated))
+            .map { _ =>
+              Redirect(routes.DeclarationController.showDeclaration(formId, formTemplateId4Ga, lang))
+            }
+          lazy val redirectToSummary = Redirect(routes.SummaryController.summaryById(formId, formTemplateId4Ga, lang))
+          lazy val handleDeclaration = for {
+            // format: OFF
+            result <- isFormValidF.ifM(
+              redirectToDeclaration,
+              redirectToSummary.pure[Future]
+            )
+            // format: ON
+          } yield result
+
+          get(data, FormComponentId("save")) match {
+            // format: OFF
+            case "Exit" :: Nil => Ok(save_acknowledgement(formId, cache.formTemplate, totalPage, lang, frontendAppConfig)).pure[Future]
+            case "Declaration" :: Nil => handleDeclaration
+            case _ => BadRequest("Cannot determine action").pure[Future]
+            // format: ON
           }
-        lazy val redirectToSummary = Redirect(routes.SummaryController.summaryById(formId, formTemplateId4Ga, lang))
-        lazy val handleDeclaration = for {
-          // format: OFF
-        result <- isFormValidF.ifM(
-          redirectToDeclaration,
-          redirectToSummary.pure[Future]
-        )
-        // format: ON
-        } yield result
-
-        get(data, FormComponentId("save")) match {
-          // format: OFF
-        case "Exit" :: Nil        => Ok(save_acknowledgement(formId, cache.formTemplate, totalPage, lang, frontendAppConfig)).pure[Future]
-        case "Declaration" :: Nil => handleDeclaration
-        case _                    => BadRequest("Cannot determine action").pure[Future]
-        // format: ON
         }
       }
+
+      repeatService.fetchSessionCache.flatMap( repeatCache => submit(repeatCache))
+
     }
 
   def downloadPDF(formId: FormId, formTemplateId4Ga: FormTemplateId, lang: Option[String]): Action[AnyContent] =
