@@ -211,7 +211,6 @@ class SectionRenderingService(
     maybeValidatedType: Option[ValidatedType],
     fieldData: Map[FormComponentId, Seq[String]],
     errors: Option[List[(FormComponent, FormFieldValidationResult)]],
-    repeatCache: Option[CacheMap],
     lang: Option[String]
   )(implicit hc: HeaderCarrier, request: Request[_], messages: Messages): Future[Html] = {
 
@@ -234,6 +233,7 @@ class SectionRenderingService(
 
     val listResult = errors.getOrElse(Nil).map { case (_, validationResult) => validationResult }
     for {
+      repeatCache <- repeatService.fetchSessionCache
       snippets <- Future.sequence(
                    formTemplate.declarationSection.fields.map(
                      fieldValue =>
@@ -277,7 +277,6 @@ class SectionRenderingService(
     form: Form,
     formTemplate: FormTemplate,
     retrievals: Retrievals,
-    repeatCache: Option[CacheMap],
     lang: Option[String],
     eventId: String)(implicit hc: HeaderCarrier, request: Request[_], messages: Messages): Future[Html] = {
 
@@ -298,6 +297,7 @@ class SectionRenderingService(
     val now = LocalDateTime.now()
     val timeMessage = s""" at ${now.format(timeFormat)} on ${now.format(dateFormat)}"""
     for {
+      repeatCache <- repeatService.fetchSessionCache
       snippets <- Future.sequence(formTemplate.acknowledgementSection.fields.map(fieldValue =>
                    htmlFor(fieldValue, formTemplate._id, 0, ei, formTemplate.sections.size, None, lang, repeatCache)))
       renderingInfo = SectionRenderingInformation(
@@ -326,7 +326,6 @@ class SectionRenderingService(
     fieldData: Map[FormComponentId, Seq[String]],
     errors: List[(FormComponent, FormFieldValidationResult)],
     validatedType: Option[ValidatedType],
-    repeatCache: Option[CacheMap],
     lang: Option[String]
   )(implicit hc: HeaderCarrier, request: Request[_], messages: Messages): Future[Html] = {
 
@@ -343,6 +342,7 @@ class SectionRenderingService(
       emptyRetrievals)
     val listResult = errors.map { case (_, validationResult) => validationResult }
     for {
+      repeatCache <- repeatService.fetchSessionCache
       snippets <- Future.sequence(
                    enrolmentSection.fields.map(
                      fieldValue =>

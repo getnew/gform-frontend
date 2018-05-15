@@ -53,18 +53,9 @@ class EnrolmentController(
     gformConnector.getFormTemplate(formTemplateId).flatMap { formTemplate =>
       formTemplate.authConfig match {
         case authConfig: AuthConfigWithEnrolment =>
-          repeatService.fetchSessionCache.flatMap { repeatCache =>
-            renderer
-              .renderEnrolmentSection(
-                formTemplate,
-                authConfig.enrolmentSection,
-                Map.empty,
-                Nil,
-                None,
-                repeatCache,
-                lang)
-              .map(Ok(_))
-          }
+          renderer
+            .renderEnrolmentSection(formTemplate, authConfig.enrolmentSection, Map.empty, Nil, None, lang)
+            .map(Ok(_))
         case _ =>
           Future.successful(
             Redirect(uk.gov.hmrc.gform.auth.routes.ErrorController.insufficientEnrolments())
@@ -86,9 +77,7 @@ class EnrolmentController(
 
               get(data, FormComponentId("save")) match {
                 case "Continue" :: Nil =>
-                  repeatService.fetchSessionCache.flatMap { repeatCache =>
-                    validationResultF.flatMap(processValidation(formTemplate, authConfig, data, repeatCache, lang))
-                  }
+                  validationResultF.flatMap(processValidation(formTemplate, authConfig, data, lang))
                 case _ =>
                   Future.successful(BadRequest("Cannot determine action"))
               }
@@ -106,7 +95,6 @@ class EnrolmentController(
     formTemplate: FormTemplate,
     authConfig: AuthConfigWithEnrolment,
     data: Map[FormComponentId, Seq[String]],
-    repeatCache: Option[CacheMap],
     lang: Option[String]
   )(validationResult: ValidatedType)(implicit hc: HeaderCarrier, request: Request[_]): Future[Result] =
     validationResult match {
@@ -125,7 +113,7 @@ class EnrolmentController(
           .recoverWith(handleEnrolmentException(authConfig, data, formTemplate, lang))
 
       case validationResult @ Invalid(_) =>
-        displayEnrolmentSectionWithErrors(validationResult, data, authConfig, formTemplate, repeatCache, lang)
+        displayEnrolmentSectionWithErrors(validationResult, data, authConfig, formTemplate, lang)
     }
 
   private def getErrorMap(
@@ -172,7 +160,6 @@ class EnrolmentController(
     data: Map[FormComponentId, Seq[String]],
     authConfig: AuthConfigWithEnrolment,
     formTemplate: FormTemplate,
-    repeatCache: Option[CacheMap],
     lang: Option[String]
   )(implicit hc: HeaderCarrier, request: Request[_]): Future[Result] = {
 
@@ -184,7 +171,6 @@ class EnrolmentController(
                data,
                errorMap,
                Some(validationResult),
-               repeatCache,
                lang)
     } yield Ok(html)
   }

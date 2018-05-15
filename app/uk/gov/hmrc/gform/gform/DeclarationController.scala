@@ -62,19 +62,9 @@ class DeclarationController(
     implicit request => cache =>
       cache.form.status match {
         case Validated =>
-          repeatService.fetchSessionCache.flatMap(
-            repeatCache =>
-              renderer
-                .renderDeclarationSection(
-                  cache.form,
-                  cache.formTemplate,
-                  cache.retrievals,
-                  None,
-                  Map.empty,
-                  None,
-                  repeatCache,
-                  lang)
-                .map(Ok(_)))
+          renderer
+            .renderDeclarationSection(cache.form, cache.formTemplate, cache.retrievals, None, Map.empty, None, lang)
+            .map(Ok(_))
         case _ => Future.successful(BadRequest)
       }
   }
@@ -141,8 +131,7 @@ class DeclarationController(
                                  formDataMap(updatedForm.formData))
                   _ <- gformConnector.updateUserData(cache.form._id, UserData(updatedForm.formData, None, Signed))
                   //todo perhaps not make these calls at all if the feature flag is false?
-                  repeatCache <- repeatService.fetchSessionCache
-                  summaryHml  <- summaryController.getSummaryHTML(formId, cache, repeatCache, lang)
+                  summaryHml <- summaryController.getSummaryHTML(formId, cache, lang)
                   cleanHtml = pdfService.sanitiseHtmlForPDF(summaryHml)
                   htmlForPDF = addExtraDataToHTML(
                     cleanHtml,
@@ -170,7 +159,6 @@ class DeclarationController(
                 val errorMap: List[(FormComponent, FormFieldValidationResult)] =
                   getErrorMap(validationResult, data, cache.formTemplate)
                 for {
-                  repeatCache <- repeatService.fetchSessionCache
                   html <- renderer.renderDeclarationSection(
                            cache.form,
                            cache.formTemplate,
@@ -178,7 +166,6 @@ class DeclarationController(
                            Some(validationResult),
                            data,
                            Some(errorMap),
-                           repeatCache,
                            lang)
                 } yield Ok(html)
             }

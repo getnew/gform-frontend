@@ -58,17 +58,10 @@ class AcknowledgementController(
     auth.async(formId) { implicit request => cache =>
       cache.form.status match {
         case Submitted =>
-          repeatService.fetchSessionCache.flatMap { repeatCache =>
-            renderer
-              .renderAcknowledgementSection(
-                cache.form,
-                cache.formTemplate,
-                cache.retrievals,
-                repeatCache,
-                lang,
-                eventId)
-              .map(Ok(_))
-          }
+          renderer
+            .renderAcknowledgementSection(cache.form, cache.formTemplate, cache.retrievals, lang, eventId)
+            .map(Ok(_))
+
         case _ => Future.successful(BadRequest)
       }
     }
@@ -82,8 +75,7 @@ class AcknowledgementController(
       case Submitted =>
         // format: OFF
         for {
-          repeatCache <- repeatService.fetchSessionCache
-          summaryHml  <- summaryController.getSummaryHTML(formId, cache, repeatCache, lang)
+          summaryHml  <- summaryController.getSummaryHTML(formId, cache, lang)
           formString  =  nonRepudiationHelpers.formDataToJson(cache.form)
           hashedValue =  nonRepudiationHelpers.computeHash(formString)
           _           =  nonRepudiationHelpers.sendAuditEvent(hashedValue, formString, eventId)
