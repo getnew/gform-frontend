@@ -165,24 +165,24 @@ class RepeatingComponentService(
     expr: Expr,
     formTemplate: FormTemplate,
     data: Map[FormComponentId, Seq[String]],
-    repeatCache: Option[CacheMap])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Int] =
+    sessionCacheMap: Option[CacheMap])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Int] =
     expr match {
       case Add(expr1, expr2) =>
         for {
-          first  <- evaluateExpression(expr1, formTemplate, data, repeatCache)
-          second <- evaluateExpression(expr2, formTemplate, data, repeatCache)
+          first  <- evaluateExpression(expr1, formTemplate, data, sessionCacheMap)
+          second <- evaluateExpression(expr2, formTemplate, data, sessionCacheMap)
         } yield first + second
       case Multiply(expr1, expr2) =>
         for {
-          first  <- evaluateExpression(expr1, formTemplate, data, repeatCache)
-          second <- evaluateExpression(expr2, formTemplate, data, repeatCache)
+          first  <- evaluateExpression(expr1, formTemplate, data, sessionCacheMap)
+          second <- evaluateExpression(expr2, formTemplate, data, sessionCacheMap)
         } yield first * second
       case Subtraction(expr1, expr2) =>
         for {
-          first  <- evaluateExpression(expr1, formTemplate, data, repeatCache)
-          second <- evaluateExpression(expr2, formTemplate, data, repeatCache)
+          first  <- evaluateExpression(expr1, formTemplate, data, sessionCacheMap)
+          second <- evaluateExpression(expr2, formTemplate, data, sessionCacheMap)
         } yield first - second
-      case Sum(FormCtx(expr1))   => sumFunctionality(expr1, formTemplate, data, repeatCache)
+      case Sum(FormCtx(expr1))   => sumFunctionality(expr1, formTemplate, data, sessionCacheMap)
       case formExpr @ FormCtx(_) => Future.successful(getFormFieldIntValue(TextExpression(formExpr), data))
       case Constant(value) =>
         Try(value.toInt) match {
@@ -217,12 +217,12 @@ class RepeatingComponentService(
     formTemplate: FormTemplate,
     data: Map[FormComponentId, Seq[String]],
     cacheMap: CacheMap,
-    repeatCache: Option[CacheMap])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Int] = {
+    sessionCacheMap: Option[CacheMap])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Int] = {
 
     val repeatingGroupsFound = findRepeatingGroupsContainingField(expr, formTemplate)
 
     if (repeatingGroupsFound.isEmpty) {
-      evaluateExpression(expr.expr, formTemplate, data, repeatCache)
+      evaluateExpression(expr.expr, formTemplate, data, sessionCacheMap)
     } else {
       val groupFieldValue = repeatingGroupsFound.head
       val fieldsInGroup = cacheMap.getEntry[RepeatingGroup](groupFieldValue.id.value).map(_.list).getOrElse(Nil).flatten
