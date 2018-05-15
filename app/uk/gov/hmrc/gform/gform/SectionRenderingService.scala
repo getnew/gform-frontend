@@ -86,7 +86,7 @@ class SectionRenderingService(
     formMaxAttachmentSizeMB: Int,
     contentTypes: List[ContentType],
     retrievals: Retrievals,
-                   repeatCache: Option[CacheMap],
+    repeatCache: Option[CacheMap],
     lang: Option[String]
   )(implicit hc: HeaderCarrier, request: Request[_], messages: Messages): Future[Html] = {
 
@@ -118,6 +118,7 @@ class SectionRenderingService(
                                   dynamicSections.size,
                                   validatedType,
                                   lang,
+                                  repeatCache,
                                   fieldValue.onlyShowOnSummary)))
       javascript <- createJavascript(
                      dynamicSections.flatMap(_.fields),
@@ -209,6 +210,7 @@ class SectionRenderingService(
     maybeValidatedType: Option[ValidatedType],
     fieldData: Map[FormComponentId, Seq[String]],
     errors: Option[List[(FormComponent, FormFieldValidationResult)]],
+    repeatCache: Option[CacheMap],
     lang: Option[String]
   )(implicit hc: HeaderCarrier, request: Request[_], messages: Messages): Future[Html] = {
 
@@ -232,7 +234,7 @@ class SectionRenderingService(
     val listResult = errors.getOrElse(Nil).map { case (_, validationResult) => validationResult }
     for {
       snippets <- Future.sequence(formTemplate.declarationSection.fields.map(fieldValue =>
-                   htmlFor(fieldValue, formTemplate._id, 0, ei, formTemplate.sections.size, maybeValidatedType, lang)))
+                   htmlFor(fieldValue, formTemplate._id, 0, ei, formTemplate.sections.size, maybeValidatedType, lang, repeatCache)))
       pageLevelErrorHtml = generatePageLevelErrorHtml(listResult)
       renderingInfo = SectionRenderingInformation(
         form._id,
@@ -380,17 +382,18 @@ class SectionRenderingService(
     totalSections: Int,
     maybeValidated: Option[ValidatedType],
     lang: Option[String],
+    repeatCache: Option[CacheMap],
     isHidden: Boolean = false)(implicit hc: HeaderCarrier, request: Request[_], messages: Messages): Future[Html] =
     fieldValue.`type` match {
       case sortCode @ UkSortCode(expr) =>
-        htmlForSortCode(fieldValue, sortCode, expr, index, maybeValidated, ei, isHidden)
+        htmlForSortCode(fieldValue, sortCode, expr, index, maybeValidated, ei, repeatCache, isHidden)
       case g @ Group(_, _, _, _, _, _) =>
         htmlForGroup(g, formTemplateId4Ga, fieldValue, index, ei, maybeValidated, lang)
       case Date(_, offset, dateValue) =>
         Future.successful(htmlForDate(fieldValue, offset, dateValue, index, maybeValidated, ei, isHidden))
       case Address(international) =>
         Future.successful(htmlForAddress(fieldValue, international, index, maybeValidated, ei))
-      case t @ Text(_, expr) => htmlForText(fieldValue, t, expr, index, maybeValidated, ei, isHidden)
+      case t @ Text(_, expr) => htmlForText(fieldValue, t, expr, index, maybeValidated, ei, repeatCache, isHidden)
       case Choice(choice, options, orientation, selections, optionalHelpText) =>
         htmlForChoice(fieldValue, choice, options, orientation, selections, optionalHelpText, index, maybeValidated, ei)
           .pure[Future]
@@ -655,6 +658,7 @@ class SectionRenderingService(
     fieldValue: FormComponent,
     index: Int,
     ei: ExtraInfo,
+    repeatCache: Option[CacheMap],
     validatedType: Option[ValidatedType],
     lang: Option[String])(implicit hc: HeaderCarrier, request: Request[_], messages: Messages) = {
     val maybeHint = fieldValue.helpText.map(markDownParser).map(Html.apply)
@@ -666,6 +670,7 @@ class SectionRenderingService(
                                 groupField.orientation,
                                 validatedType,
                                 ei,
+                                repeatCache,
                                 lang)
     } yield
       html.form.snippets.group(fieldValue, maybeHint, groupField, lhtml, groupField.orientation, limitReached, index)

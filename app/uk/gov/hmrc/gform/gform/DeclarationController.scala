@@ -16,17 +16,18 @@
 
 package uk.gov.hmrc.gform.gform
 
-import cats.data.Validated.{ Invalid, Valid }
+import cats.data.Validated.{Invalid, Valid}
 import org.jsoup.Jsoup
 import play.api.Logger
+import play.api.mvc.Result
 import play.api.i18n.I18nSupport
-import uk.gov.hmrc.gform.auditing.{ AuditService, loggingHelpers }
+import uk.gov.hmrc.gform.auditing.{AuditService, loggingHelpers}
 import uk.gov.hmrc.gform.auth.AuthService
 import uk.gov.hmrc.gform.auth.models.Retrievals
 import uk.gov.hmrc.gform.auth.models.Retrievals.getTaxIdValue
 import uk.gov.hmrc.gform.config.FrontendAppConfig
 import uk.gov.hmrc.gform.controllers.AuthenticatedRequestActions
-import uk.gov.hmrc.gform.controllers.helpers.FormDataHelpers.{ formDataMap, get, processResponseDataFromBody }
+import uk.gov.hmrc.gform.controllers.helpers.FormDataHelpers.{formDataMap, get, processResponseDataFromBody}
 import uk.gov.hmrc.gform.fileupload.Envelope
 import uk.gov.hmrc.gform.gformbackend.GformConnector
 import uk.gov.hmrc.gform.keystore.RepeatingComponentService
@@ -34,8 +35,9 @@ import uk.gov.hmrc.gform.sharedmodel.form._
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
 import uk.gov.hmrc.gform.summarypdf.PdfGeneratorService
 import uk.gov.hmrc.gform.validation.ValidationUtil.ValidatedType
-import uk.gov.hmrc.gform.validation.{ FormFieldValidationResult, ValidationService }
+import uk.gov.hmrc.gform.validation.{FormFieldValidationResult, ValidationService}
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.cache.client.CacheMap
 import uk.gov.hmrc.play.frontend.controller.FrontendController
 
 import scala.concurrent.Future
@@ -58,13 +60,18 @@ class DeclarationController(
 
   def showDeclaration(formId: FormId, formTemplateId4Ga: FormTemplateId, lang: Option[String]) = auth.async(formId) {
     implicit request => cache =>
+
+      def showDeclaration(repeatCache: Option[CacheMap]) : Future[Result] =
       cache.form.status match {
         case Validated =>
           renderer
-            .renderDeclarationSection(cache.form, cache.formTemplate, cache.retrievals, None, Map.empty, None, lang)
+            .renderDeclarationSection(cache.form, cache.formTemplate, cache.retrievals, None, Map.empty, None, repeatCache, lang)
             .map(Ok(_))
         case _ => Future.successful(BadRequest)
       }
+
+      repeatService.fetchSessionCache.flatMap( repeatCache => showDeclaration(repeatCache))
+
   }
   //todo try and refactor the two addExtraDataToHTML into one method
   private def addExtraDataToHTML(
@@ -163,6 +170,7 @@ class DeclarationController(
                            Some(validationResult),
                            data,
                            Some(errorMap),
+                           repeatCache,
                            lang)
                 } yield Ok(html)
             }

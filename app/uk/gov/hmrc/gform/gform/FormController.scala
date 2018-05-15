@@ -28,7 +28,7 @@ import uk.gov.hmrc.gform.gformbackend.GformConnector
 import uk.gov.hmrc.gform.keystore.RepeatingComponentService
 import uk.gov.hmrc.gform.sharedmodel._
 import uk.gov.hmrc.gform.sharedmodel.form._
-import uk.gov.hmrc.gform.sharedmodel.formtemplate.{FormComponent, FormComponentId, FormTemplate, FormTemplateId, SectionNumber}
+import uk.gov.hmrc.gform.sharedmodel.formtemplate.{UserId => _, _}
 import uk.gov.hmrc.gform.validation.{FormFieldValidationResult, ValidationService, ValidationUtil}
 import uk.gov.hmrc.gform.views.html.form._
 import uk.gov.hmrc.gform.views.html.hardcoded.pages._
@@ -190,8 +190,7 @@ class FormController(
       def updateFormData(repeatCache: Option[CacheMap]): Future[Result] = {
 
         processResponseDataFromBody(request) { (data: Map[FormComponentId, Seq[String]]) =>
-          val sectionsF = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
-
+          val sectionsF : Future[List[Section]]= repeatService.getAllSections(cache.formTemplate, data, repeatCache)
           val formFieldValidationResultsF: Future[Map[FormComponent, FormFieldValidationResult]] = for { // format: OFF
             sections <- sectionsF
             envelope <- envelopeF
@@ -276,7 +275,7 @@ class FormController(
           def processRemoveGroup(idx: Int, groupId: String): Future[Result] =
             for {
               dynamicSections <- sectionsF
-              updatedData <- repeatService.removeGroup(idx, groupId, data, repeatCache)
+              updatedData = repeatService.removeGroup(idx, groupId, data, repeatCache).getOrElse(data)
               compList = repeatService.getAllRepeatingGroups(repeatCache).getEntry[RepeatingGroup](groupId)
               envelope <- envelopeF
               section = dynamicSections(sectionNumber.value)
@@ -293,7 +292,7 @@ class FormController(
               Redirect(
                 routes.FormController
                   .form(formId, cache.formTemplate._id, sectionNumber, dynamicSections.size, lang)
-                  .url + anchor(Some(compList.map(_.list))))
+                  .url + anchor(compList.map(_.list)))
 
           val userId = UserId(cache.retrievals.userDetails.groupIdentifier)
           val navigationF: Future[Direction] =
@@ -317,9 +316,9 @@ class FormController(
           }
 
         }
-
-        repeatService.fetchSessionCache.flatMap( repeatCache => updateFormData(repeatCache))
       }
+
+      repeatService.fetchSessionCache.flatMap( repeatCache => updateFormData(repeatCache))
   }
 
   private lazy val firstSection = SectionNumber(0)
