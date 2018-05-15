@@ -81,6 +81,9 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
       groupField: Group,
       sessionCacheMap: Option[CacheMap])(implicit hc: HeaderCarrier, ec: ExecutionContext) =
       Future.successful((List(groupField.fields), false))
+
+    override def fetchSessionCache(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Option[CacheMap]] =
+      Future.successful(None)
   }
 
   val testService = new SectionRenderingService(mockRepeatService, mockPrepopService, frontendAppConfig)
@@ -433,7 +436,6 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
         None,
         Map.empty,
         None,
-        None,
         None
       )
       .futureValue
@@ -458,7 +460,6 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
         None,
         Map.empty,
         None,
-        None,
         None
       )
       .futureValue
@@ -482,7 +483,6 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
         retrievals,
         None,
         Map.empty,
-        None,
         None,
         None
       )

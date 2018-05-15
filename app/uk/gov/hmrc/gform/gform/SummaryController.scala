@@ -63,9 +63,7 @@ class SummaryController(
     auth.async(formId) { implicit request => cache =>
       cache.form.status match {
         case Summary | Validated | Signed =>
-          repeatService.fetchSessionCache.flatMap { repeatCache =>
-            getSummaryHTML(formId, cache, repeatCache, lang).map(Ok(_))
-          }
+          getSummaryHTML(formId, cache, lang).map(Ok(_))
         case _ =>
           errResponder.notFound(request, "Summary was hit before status was changed.")
       }
@@ -111,8 +109,7 @@ class SummaryController(
       cache.form.status match {
         case InProgress | Summary =>
           for {
-            repeatCache <- repeatService.fetchSessionCache
-            summaryHml  <- getSummaryHTML(formId, cache, repeatCache, lang)
+            summaryHml <- getSummaryHTML(formId, cache, lang)
             htmlForPDF = pdfService.sanitiseHtmlForPDF(summaryHml)
             pdfStream <- pdfService.generatePDF(htmlForPDF)
           } yield
@@ -131,10 +128,11 @@ class SummaryController(
     repeatCache: Option[CacheMap])(
     implicit hc: HeaderCarrier): Future[(ValidatedType, Map[FormComponent, FormFieldValidationResult])] = {
     val data = FormDataHelpers.formDataMap(cache.form.formData)
-    val sectionsF = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
-    val filteredSections =
-      sectionsF.map(_.filter(x => BooleanExpr.isTrue(x.includeIf.map(_.expr).getOrElse(IsTrue), data, retrievals)))
     for {
+      repeatCache <- repeatService.fetchSessionCache
+      sectionsF = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
+      filteredSections = sectionsF.map(
+        _.filter(x => BooleanExpr.isTrue(x.includeIf.map(_.expr).getOrElse(IsTrue), data, retrievals)))
       sections <- filteredSections
       allFields = sections.flatMap(s => repeatService.atomicFields(s, repeatCache))
       v1 <- sections
@@ -149,14 +147,15 @@ class SummaryController(
     } yield (v, errors)
   }
 
-  def getSummaryHTML(formId: FormId, cache: AuthCacheWithForm, repeatCache: Option[CacheMap], lang: Option[String])(
+  def getSummaryHTML(formId: FormId, cache: AuthCacheWithForm, lang: Option[String])(
     implicit request: Request[_]): Future[Html] = {
     val data = FormDataHelpers.formDataMap(cache.form.formData)
     val envelopeF = fileUploadService.getEnvelope(cache.form.envelopeId)
 
     for {
-      envelope <- envelopeF
-      (v, _)   <- validateForm(cache, envelope, cache.retrievals, repeatCache)
+      envelope    <- envelopeF
+      repeatCache <- repeatService.fetchSessionCache
+      (v, _)      <- validateForm(cache, envelope, cache.retrievals, repeatCache)
       result <- SummaryRenderingService.renderSummary(
                  cache.formTemplate,
                  v,
