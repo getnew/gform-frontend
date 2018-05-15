@@ -37,8 +37,11 @@ class RepeatingComponentService(
       isRepeatingSection(s) || hasRepeatingGroup(s.fields)
     }
 
-  private def isRepeatingSection(section: Section): Boolean =
+  private def isRepeatingSection(section: Section): Boolean = {
+    val x = 0
+    val vv = x
     section.repeatsMax.isDefined && section.repeatsMin.isDefined
+  }
 
   private def hasRepeatingGroup(fields: Seq[FormComponent]): Boolean =
     fields.exists(f =>
@@ -52,26 +55,27 @@ class RepeatingComponentService(
 
   def fetchSessionCache(implicit hc: HeaderCarrier, ec: ExecutionContext) = sessionCache.fetch
 
-  def withSessionCacheMap[T](formTemplate: FormTemplate)(
-    f: Option[CacheMap] => T)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[T] =
-    if (isRepeating(formTemplate))
-      sessionCache.fetch.map(f)
-    else
-      Future.successful(f(None))
-
   def getAllSections(
     formTemplate: FormTemplate,
     data: Map[FormComponentId, Seq[String]],
-    sessionCacheMap: Option[CacheMap])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[List[Section]] =
+    sessionCacheMap: Option[CacheMap])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[List[Section]] = {
+    val x = 0
+    val xx = x
     Future
-      .sequence(formTemplate.sections.map { section =>
+      .sequence(formTemplate.sections.map { section => {
+        val x = 0
+        val xx = x
         if (isRepeatingSection(section)) {
+          val x = 0
+          val xx = x
           generateDynamicSections(section, formTemplate, data, getAllRepeatingGroups(sessionCacheMap), sessionCacheMap)
         } else {
           Future.successful(List(section))
         }
+      }
       })
       .map(_.flatten)
+  }
 
   def getAllRepeatingGroups(sessionCacheMap: Option[CacheMap]): CacheMap =
     sessionCacheMap.getOrElse(CacheMap("Empty", Map.empty))
@@ -88,6 +92,8 @@ class RepeatingComponentService(
     for {
       count <- countF
     } yield {
+      val x = 0
+      val xx = x
       (1 to count).map { i =>
         copySection(section, i, data, cacheMap)
       }.toList
@@ -282,10 +288,11 @@ class RepeatingComponentService(
     val dynamicListOpt = sessionCacheMap.flatMap(_.getEntry[RepeatingGroup](componentId))
     val dynamicList = dynamicListOpt.map(_.list).getOrElse(Nil) // Nil should never happen
 
-    sessionCache.cache[RepeatingGroup](
-      componentId,
-      buildRepeatingGroup(dynamicList, dynamicListOpt.map(_.render).getOrElse(true))).map(
-      _.getEntry[RepeatingGroup](componentId).map(_.list))
+    sessionCache
+      .cache[RepeatingGroup](
+        componentId,
+        buildRepeatingGroup(dynamicList, dynamicListOpt.map(_.render).getOrElse(true)))
+      .map(_.getEntry[RepeatingGroup](componentId).map(_.list))
 
   }
 
@@ -463,7 +470,9 @@ class RepeatingComponentService(
 
   def clearSession(implicit hc: HeaderCarrier, ec: ExecutionContext) = sessionCache.remove()
 
-  def atomicFields(section: BaseSection, sessionCacheMap: Option[CacheMap])(implicit hc: HeaderCarrier, ec: ExecutionContext): List[FormComponent] = {
+  def atomicFields(section: BaseSection, sessionCacheMap: Option[CacheMap])(
+    implicit hc: HeaderCarrier,
+    ec: ExecutionContext): List[FormComponent] = {
     def atomicFields(fields: List[FormComponent]): List[FormComponent] =
       fields.flatMap {
         case (fv: FormComponent) =>

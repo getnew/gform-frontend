@@ -154,7 +154,7 @@ class SummaryController(
     } yield (v, errors)
   }
 
-  def getSummaryHTML(formId: FormId, cache: AuthCacheWithForm, repeatCache: Option[CacheMap],lang: Option[String])(
+  def getSummaryHTML(formId: FormId, cache: AuthCacheWithForm, repeatCache: Option[CacheMap], lang: Option[String])(
     implicit request: Request[_]): Future[Html] = {
     val data = FormDataHelpers.formDataMap(cache.form.formData)
     val envelopeF = fileUploadService.getEnvelope(cache.form.envelopeId)

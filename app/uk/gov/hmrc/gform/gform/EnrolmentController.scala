@@ -16,19 +16,19 @@
 
 package uk.gov.hmrc.gform.gform
 
-import cats.data.Validated.{Invalid, Valid}
+import cats.data.Validated.{ Invalid, Valid }
 import play.api.i18n.I18nSupport
-import play.api.mvc.{Action, Request, Result}
-import uk.gov.hmrc.gform.auth.{Identifier, Verifier, _}
+import play.api.mvc.{ Action, Request, Result }
+import uk.gov.hmrc.gform.auth.{ Identifier, Verifier, _ }
 import uk.gov.hmrc.gform.config.AppConfig
 import uk.gov.hmrc.gform.controllers.AuthenticatedRequestActions
-import uk.gov.hmrc.gform.controllers.helpers.FormDataHelpers.{get, processResponseDataFromBody}
+import uk.gov.hmrc.gform.controllers.helpers.FormDataHelpers.{ get, processResponseDataFromBody }
 import uk.gov.hmrc.gform.fileupload.Envelope
 import uk.gov.hmrc.gform.gformbackend.GformConnector
 import uk.gov.hmrc.gform.keystore.RepeatingComponentService
 import uk.gov.hmrc.gform.sharedmodel.form.EnvelopeId
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
-import uk.gov.hmrc.gform.validation.{FormFieldValidationResult, ValidationService}
+import uk.gov.hmrc.gform.validation.{ FormFieldValidationResult, ValidationService }
 import uk.gov.hmrc.gform.validation.ValidationUtil.ValidatedType
 import uk.gov.hmrc.play.frontend.controller.FrontendController
 
@@ -55,7 +55,14 @@ class EnrolmentController(
         case authConfig: AuthConfigWithEnrolment =>
           repeatService.fetchSessionCache.flatMap { repeatCache =>
             renderer
-              .renderEnrolmentSection(formTemplate, authConfig.enrolmentSection, Map.empty, Nil, None, repeatCache, lang)
+              .renderEnrolmentSection(
+                formTemplate,
+                authConfig.enrolmentSection,
+                Map.empty,
+                Nil,
+                None,
+                repeatCache,
+                lang)
               .map(Ok(_))
           }
         case _ =>
@@ -177,7 +184,7 @@ class EnrolmentController(
                data,
                errorMap,
                Some(validationResult),
-        repeatCache,
+               repeatCache,
                lang)
     } yield Ok(html)
   }
