@@ -61,8 +61,8 @@ class SummarySpec extends Spec {
       override def getAllRepeatingGroups(sessionCache:Option[CacheMap]): CacheMap =
         CacheMap("Empty", Map.empty[String, JsValue])
 
-      override def getAllFieldsInGroupForSummary(topFieldValue: FormComponent, groupField: Group)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[List[List[FormComponent]]] = {
-        Future.successful(List[List[FormComponent]]())
+      override def getAllFieldsInGroupForSummary(topFieldValue: FormComponent, groupField: Group, sessionCache: Option[CacheMap]): List[List[FormComponent]] = {
+        List[List[FormComponent]]()
       }
 
       override def getAllFieldsInGroup(topFieldValue: FormComponent, groupField: Group, sessionCache:Option[CacheMap]): List[List[FormComponent]] = {

@@ -116,23 +116,17 @@ object SummaryRenderingService {
           fieldValue.`type` match {
             case groupField: Group
                 if presentationHint.contains(SummariseGroupAsGrid) && groupField.repeatsMax.isDefined =>
-              val htmlList: Future[List[Html]] =
+              val htmlList: List[Html] =
                 repeatService
-                  .getAllFieldsInGroupForSummary(fieldValue, groupField)
-                  .map(y =>
-                    for {
-                      group <- y
-                      value = group.map(validate)
-                    } yield {
-                      group_grid(fieldValue, value, false)
-                  })
-              htmlList.map(y => repeating_group(y))
+                  .getAllFieldsInGroupForSummary(fieldValue, groupField, repeatCache)
+                  .map(group => group_grid(fieldValue, group.map(validate), false))
+              Future.successful(repeating_group(htmlList))
             case groupField: Group if presentationHint.contains(SummariseGroupAsGrid) =>
               groupGrid(groupField.fields)
                 .pure[Future]
             case groupField @ Group(_, orientation, _, _, _, _) =>
+              val fvs = repeatService.getAllFieldsInGroupForSummary(fieldValue, groupField, repeatCache)
               for {
-                fvs      <- repeatService.getAllFieldsInGroupForSummary(fieldValue, groupField)
                 htmlList <- Future.sequence(fvs.flatMap(_.map { case (fv: FormComponent) => valueToHtml(fv) }.toList))
               } yield group(fieldValue, htmlList, orientation, isLabel)
             case _ => valueToHtml(fieldValue)

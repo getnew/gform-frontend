@@ -330,12 +330,10 @@ class RepeatingComponentService(
     } yield newData
   }
 
-  def getData()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Option[RepeatingGroupStructure]] =
-    sessionCache
-      .fetch()
-      .map(
-        _.fold[Option[RepeatingGroupStructure]](None)(x => Some(RepeatingGroupStructure(x.data)))
-      )
+  def getData(sessionCacheMap: Option[CacheMap])(
+    implicit hc: HeaderCarrier,
+    ec: ExecutionContext): Option[RepeatingGroupStructure] =
+    sessionCacheMap.fold[Option[RepeatingGroupStructure]](None)(x => Some(RepeatingGroupStructure(x.data)))
 
   def loadData(data: Option[RepeatingGroupStructure])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] =
     data.fold(Future.successful(()))(
@@ -454,18 +452,17 @@ class RepeatingComponentService(
     resultOpt.map(_.list).getOrElse(List(groupField.fields))
   }
 
-  def getAllFieldsInGroupForSummary(topFieldValue: FormComponent, groupField: Group)(
-    implicit hc: HeaderCarrier,
-    ex: ExecutionContext): Future[List[List[FormComponent]]] =
-    sessionCache
-      .fetchAndGetEntry[RepeatingGroup](topFieldValue.id.value)
-      .map(
-        resultOpt =>
-          buildGroupFieldsLabelsForSummary(
-            resultOpt.fold[List[List[FormComponent]]](List(groupField.fields))(x =>
-              if (x.render) x.list else List(groupField.fields)),
-            topFieldValue
-        ))
+  def getAllFieldsInGroupForSummary(
+    topFieldValue: FormComponent,
+    groupField: Group,
+    sessionCacheMap: Option[CacheMap]): List[List[FormComponent]] = {
+    val resultOpt = sessionCacheMap.flatMap(_.getEntry[RepeatingGroup](topFieldValue.id.value))
+    buildGroupFieldsLabelsForSummary(
+      resultOpt.fold[List[List[FormComponent]]](List(groupField.fields))(x =>
+        if (x.render) x.list else List(groupField.fields)),
+      topFieldValue
+    )
+  }
 
   def clearSession(implicit hc: HeaderCarrier, ec: ExecutionContext) = sessionCache.remove()
 

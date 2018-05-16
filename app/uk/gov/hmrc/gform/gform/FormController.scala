@@ -212,10 +212,10 @@ class FormController(
           val formDataF: Future[FormData] = fieldsF.map(FormData(_))
 
           def processSaveAndContinue(userId: UserId, form: Form, nextPage: Result)(
-            implicit hc: HeaderCarrier): Future[Result] =
+            implicit hc: HeaderCarrier): Future[Result] = {
+            val keystore = repeatService.getData(repeatCache)
             for {
               formData <- formDataF
-              keystore <- repeatService.getData()
               section  <- sectionsF
               userData = UserData(formData, keystore, InProgress)
               _           <- gformConnector.updateUserData(formId, userData)
@@ -225,11 +225,12 @@ class FormController(
               else
                 Redirect(
                   routes.FormController.formError(formId, cache.formTemplate._id, sectionNumber, section.size, lang))
+          }
 
-          def processSaveAndSummary(userId: UserId, form: Form)(implicit hc: HeaderCarrier): Future[Result] =
+          def processSaveAndSummary(userId: UserId, form: Form)(implicit hc: HeaderCarrier): Future[Result] = {
+            val keystore = repeatService.getData(repeatCache)
             for {
               formData <- formDataF
-              keystore <- repeatService.getData()
               section  <- sectionsF
               userData = UserData(formData, keystore, Summary)
               _           <- gformConnector.updateUserData(formId, userData)
@@ -238,11 +239,12 @@ class FormController(
               gotoFormError = Redirect(
                 routes.FormController.formError(formId, cache.formTemplate._id, sectionNumber, section.size, lang))
             } yield if (isFormValid) gotoSummary else gotoFormError
+          }
 
-          def processSaveAndExit(userId: UserId, form: Form, envelopeId: EnvelopeId): Future[Result] =
+          def processSaveAndExit(userId: UserId, form: Form, envelopeId: EnvelopeId): Future[Result] = {
+            val keystore = repeatService.getData(repeatCache)
             for {
               section  <- sectionsF
-              keystore <- repeatService.getData()
               formData <- formDataF
               userData = UserData(formData, keystore, InProgress)
 
@@ -252,20 +254,22 @@ class FormController(
                            Ok(views.html.hardcoded.pages
                              .save_acknowledgement(formId, cache.formTemplate, section.size, lang, frontendAppConfig)))
             } yield result
+          }
 
-          def processBack(userId: UserId, form: Form)(continue: Future[Result]): Future[Result] =
+          def processBack(userId: UserId, form: Form)(continue: Future[Result]): Future[Result] = {
+            val keystore = repeatService.getData(repeatCache)
             for {
-              keystore <- repeatService.getData()
               formData <- formDataF
               userData = UserData(formData, keystore, InProgress)
               result <- gformConnector.updateUserData(formId, userData).flatMap(response => continue)
             } yield result
+          }
 
-          def processAddGroup(groupId: String): Future[Result] =
+          def processAddGroup(groupId: String): Future[Result] = {
+            val keystore = repeatService.getData(repeatCache)
             for {
               optCompList     <- repeatService.appendNewGroup(groupId, repeatCache)
               dynamicSections <- sectionsF
-              keystore        <- repeatService.getData()
               formData        <- formDataF
               userData = UserData(formData, keystore, InProgress)
               _ <- gformConnector.updateUserData(formId, userData)
@@ -274,11 +278,13 @@ class FormController(
                 routes.FormController
                   .form(formId, cache.formTemplate._id, sectionNumber, dynamicSections.size, lang)
                   .url + anchor(optCompList))
+          }
 
           def anchor(optCompList: Option[List[List[FormComponent]]]) =
             optCompList.map(list => s"#${list.last.head.id}").getOrElse("")
 
-          def processRemoveGroup(idx: Int, groupId: String): Future[Result] =
+          def processRemoveGroup(idx: Int, groupId: String): Future[Result] = {
+            val keystore = repeatService.getData(repeatCache)
             for {
               dynamicSections <- sectionsF
               updatedData = repeatService.removeGroup(idx, groupId, data, repeatCache).getOrElse(data)
@@ -291,7 +297,6 @@ class FormController(
                     updatedData)
               errors = validationService.evaluateValidation(v, allFields, updatedData, envelope).toMap
               formData = FormData(errors.values.toSeq.flatMap(_.toFormField))
-              keystore <- repeatService.getData()
               userData = UserData(formData, keystore, InProgress)
               _ <- gformConnector.updateUserData(formId, userData)
             } yield
@@ -299,6 +304,7 @@ class FormController(
                 routes.FormController
                   .form(formId, cache.formTemplate._id, sectionNumber, dynamicSections.size, lang)
                   .url + anchor(compList.map(_.list)))
+          }
 
           val userId = UserId(cache.retrievals.userDetails.groupIdentifier)
           val navigationF: Future[Direction] =
