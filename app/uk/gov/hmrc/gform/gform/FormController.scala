@@ -265,12 +265,13 @@ class FormController(
             } yield result
           }
 
-          def processAddGroup(groupId: String): Future[Result] = {
-            val keystore = repeatService.getData(repeatCache)
+          def processAddGroup(groupId: String): Future[Result] =
             for {
               optCompList     <- repeatService.appendNewGroup(groupId, repeatCache)
               dynamicSections <- sectionsF
-              formData        <- formDataF
+              repeatCache     <- repeatService.fetchSessionCache(cache.formTemplate)
+              keystore = repeatService.getData(repeatCache)
+              formData <- formDataF
               userData = UserData(formData, keystore, InProgress)
               _ <- gformConnector.updateUserData(formId, userData)
             } yield
@@ -278,13 +279,11 @@ class FormController(
                 routes.FormController
                   .form(formId, cache.formTemplate._id, sectionNumber, dynamicSections.size, lang)
                   .url + anchor(optCompList))
-          }
 
           def anchor(optCompList: Option[List[List[FormComponent]]]) =
             optCompList.map(list => s"#${list.last.head.id}").getOrElse("")
 
-          def processRemoveGroup(idx: Int, groupId: String): Future[Result] = {
-            val keystore = repeatService.getData(repeatCache)
+          def processRemoveGroup(idx: Int, groupId: String): Future[Result] =
             for {
               dynamicSections <- sectionsF
               updatedData = repeatService.removeGroup(idx, groupId, data, repeatCache).getOrElse(data)
@@ -297,6 +296,8 @@ class FormController(
                     updatedData)
               errors = validationService.evaluateValidation(v, allFields, updatedData, envelope).toMap
               formData = FormData(errors.values.toSeq.flatMap(_.toFormField))
+              repeatCache <- repeatService.fetchSessionCache(cache.formTemplate)
+              keystore = repeatService.getData(repeatCache)
               userData = UserData(formData, keystore, InProgress)
               _ <- gformConnector.updateUserData(formId, userData)
             } yield
@@ -304,7 +305,6 @@ class FormController(
                 routes.FormController
                   .form(formId, cache.formTemplate._id, sectionNumber, dynamicSections.size, lang)
                   .url + anchor(compList.map(_.list)))
-          }
 
           val userId = UserId(cache.retrievals.userDetails.groupIdentifier)
           val navigationF: Future[Direction] =
