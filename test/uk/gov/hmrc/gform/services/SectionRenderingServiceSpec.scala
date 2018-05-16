@@ -82,7 +82,8 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
       sessionCacheMap: Option[CacheMap])(implicit hc: HeaderCarrier, ec: ExecutionContext) =
       Future.successful((List(groupField.fields), false))
 
-    override def fetchSessionCache(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Option[CacheMap]] =
+    override def fetchSessionCache(
+      formTemplate: FormTemplate)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Option[CacheMap]] =
       Future.successful(None)
   }
 

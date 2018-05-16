@@ -102,7 +102,7 @@ class FormController(
       _               <- repeatService.loadData(cache.form.repeatingGroupStructure)
       envelopeF       =  fileUploadService.getEnvelope(cache.form.envelopeId)
       envelope        <- envelopeF
-      repeatCache     <- repeatService.fetchSessionCache
+      repeatCache     <- repeatService.fetchSessionCache(cache.formTemplate)
       dynamicSections <- repeatService.getAllSections(cache.formTemplate, fieldData, repeatCache)
       html            <- renderer.renderSection(cache.form, sectionNumber, fieldData, cache.formTemplate, None, envelope, cache.form.envelopeId, None, dynamicSections, formMaxAttachmentSizeMB, contentTypes, cache.retrievals, repeatCache, lang)
       // format: ON
@@ -118,7 +118,7 @@ class FormController(
     val data = FormDataHelpers.formDataMap(cache.form.formData)
     val envelopeF = fileUploadService.getEnvelope(cache.form.envelopeId)
     for { // format: OFF
-      repeatCache       <- repeatService.fetchSessionCache
+      repeatCache       <- repeatService.fetchSessionCache(cache.formTemplate)
       sections          <- repeatService.getAllSections(cache.formTemplate, data, repeatCache)
       envelope          <- envelopeF
       section           = sections(sectionNumber.value)
@@ -326,7 +326,7 @@ class FormController(
         }
       }
 
-      repeatService.fetchSessionCache.flatMap(repeatCache => updateFormData(repeatCache))
+      repeatService.fetchSessionCache(cache.formTemplate).flatMap(repeatCache => updateFormData(repeatCache))
   }
 
   private lazy val firstSection = SectionNumber(0)
