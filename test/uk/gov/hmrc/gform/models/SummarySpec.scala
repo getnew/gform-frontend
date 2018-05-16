@@ -52,7 +52,7 @@ class SummarySpec extends Spec {
 
     val mockRepeatService = new RepeatingComponentService(null, null) {
 
-      override def fetchSessionCache(implicit hc: HeaderCarrier, ec: ExecutionContext) = Future.successful(None)
+      override def fetchSessionCache(formTemplate:FormTemplate)(implicit hc: HeaderCarrier, ec: ExecutionContext) = Future.successful(None)
 
       override def getAllSections(formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]], sessionCache:Option[CacheMap])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[List[Section]] = {
         Future.successful(formTemplate.sections)

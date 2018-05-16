@@ -233,7 +233,7 @@ class SectionRenderingService(
 
     val listResult = errors.getOrElse(Nil).map { case (_, validationResult) => validationResult }
     for {
-      repeatCache <- repeatService.fetchSessionCache
+      repeatCache <- repeatService.fetchSessionCache(formTemplate)
       snippets <- Future.sequence(
                    formTemplate.declarationSection.fields.map(
                      fieldValue =>
@@ -297,7 +297,7 @@ class SectionRenderingService(
     val now = LocalDateTime.now()
     val timeMessage = s""" at ${now.format(timeFormat)} on ${now.format(dateFormat)}"""
     for {
-      repeatCache <- repeatService.fetchSessionCache
+      repeatCache <- repeatService.fetchSessionCache(formTemplate)
       snippets <- Future.sequence(formTemplate.acknowledgementSection.fields.map(fieldValue =>
                    htmlFor(fieldValue, formTemplate._id, 0, ei, formTemplate.sections.size, None, lang, repeatCache)))
       renderingInfo = SectionRenderingInformation(
@@ -342,7 +342,7 @@ class SectionRenderingService(
       emptyRetrievals)
     val listResult = errors.map { case (_, validationResult) => validationResult }
     for {
-      repeatCache <- repeatService.fetchSessionCache
+      repeatCache <- repeatService.fetchSessionCache(formTemplate)
       snippets <- Future.sequence(
                    enrolmentSection.fields.map(
                      fieldValue =>

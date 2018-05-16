@@ -50,7 +50,11 @@ class RepeatingComponentService(
 
   private def isRepeatingGroup(group: Group): Boolean = group.repeatsMax.isDefined && group.repeatsMin.isDefined
 
-  def fetchSessionCache(implicit hc: HeaderCarrier, ec: ExecutionContext) = sessionCache.fetch
+  def fetchSessionCache(formTemplate: FormTemplate)(implicit hc: HeaderCarrier, ec: ExecutionContext) =
+    if (isRepeating(formTemplate: FormTemplate))
+      sessionCache.fetch
+    else
+      Future.successful(None)
 
   def getAllSections(
     formTemplate: FormTemplate,
