@@ -65,8 +65,8 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
     override def getAllSections(
       formTemplate: FormTemplate,
       data: Map[FormComponentId, Seq[String]],
-      sessionCacheMap: Option[CacheMap])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[List[Section]] =
-      Future.successful(allSections)
+      sessionCacheMap: Option[CacheMap]): List[Section] =
+      allSections
 
     override def getAllRepeatingGroups(sessionCacheMap: Option[CacheMap]): CacheMap =
       CacheMap("EMPTY", Map.empty[String, JsValue])
@@ -367,8 +367,8 @@ class SectionRenderingServiceSpec extends SpecWithFakeApp {
       override def getAllSections(
         formTemplate: FormTemplate,
         data: Map[FormComponentId, Seq[String]],
-        sessionCacheMap: Option[CacheMap])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[List[Section]] =
-        Future.successful(allSections)
+        sessionCacheMap: Option[CacheMap]): List[Section] =
+        allSections
 
       override def getAllRepeatingGroups(sessionCacheMap: Option[CacheMap]): CacheMap =
         CacheMap("EMPTY", Map.empty[String, JsValue])

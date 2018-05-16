@@ -99,7 +99,7 @@ class SummaryController(
           case "Exit" :: Nil =>
             Ok(save_acknowledgement(formId, cache.formTemplate, totalPage, lang, frontendAppConfig)).pure[Future]
           case "Declaration" :: Nil => handleDeclaration
-          case _ => BadRequest("Cannot determine action").pure[Future]
+          case _                    => BadRequest("Cannot determine action").pure[Future]
         }
       }
     }
@@ -130,12 +130,11 @@ class SummaryController(
     val data = FormDataHelpers.formDataMap(cache.form.formData)
     for {
       repeatCache <- repeatService.fetchSessionCache(cache.formTemplate)
-      sectionsF = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
-      filteredSections = sectionsF.map(
-        _.filter(x => BooleanExpr.isTrue(x.includeIf.map(_.expr).getOrElse(IsTrue), data, retrievals)))
-      sections <- filteredSections
-      allFields = sections.flatMap(s => repeatService.atomicFields(s, repeatCache))
-      v1 <- sections
+      sections = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
+      filteredSections = sections.filter(x =>
+        BooleanExpr.isTrue(x.includeIf.map(_.expr).getOrElse(IsTrue), data, retrievals))
+      allFields = filteredSections.flatMap(s => repeatService.atomicFields(s, repeatCache))
+      v1 <- filteredSections
              .map(x => validationService.validateForm(allFields, x, cache.form.envelopeId, retrievals)(data))
              .sequenceU
              .map(Monoid[ValidatedType].combineAll)
@@ -153,9 +152,9 @@ class SummaryController(
     val envelopeF = fileUploadService.getEnvelope(cache.form.envelopeId)
 
     for {
-      envelope <- envelopeF
+      envelope    <- envelopeF
       repeatCache <- repeatService.fetchSessionCache(cache.formTemplate)
-      (v, _) <- validateForm(cache, envelope, cache.retrievals, repeatCache)
+      (v, _)      <- validateForm(cache, envelope, cache.retrievals, repeatCache)
       result <- SummaryRenderingService.renderSummary(
                  cache.formTemplate,
                  v,

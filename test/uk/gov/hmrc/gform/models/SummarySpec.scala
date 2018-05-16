@@ -54,8 +54,8 @@ class SummarySpec extends Spec {
 
       override def fetchSessionCache(formTemplate:FormTemplate)(implicit hc: HeaderCarrier, ec: ExecutionContext) = Future.successful(None)
 
-      override def getAllSections(formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]], sessionCache:Option[CacheMap])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[List[Section]] = {
-        Future.successful(formTemplate.sections)
+      override def getAllSections(formTemplate: FormTemplate, data: Map[FormComponentId, Seq[String]], sessionCache:Option[CacheMap]): List[Section] = {
+        formTemplate.sections
       }
 
       override def getAllRepeatingGroups(sessionCache:Option[CacheMap]): CacheMap =

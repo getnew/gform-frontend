@@ -103,7 +103,7 @@ class FormController(
       envelopeF       =  fileUploadService.getEnvelope(cache.form.envelopeId)
       envelope        <- envelopeF
       repeatCache     <- repeatService.fetchSessionCache(cache.formTemplate)
-      dynamicSections <- repeatService.getAllSections(cache.formTemplate, fieldData, repeatCache)
+      dynamicSections = repeatService.getAllSections(cache.formTemplate, fieldData, repeatCache)
       html            <- renderer.renderSection(cache.form, sectionNumber, fieldData, cache.formTemplate, None, envelope, cache.form.envelopeId, None, dynamicSections, formMaxAttachmentSizeMB, contentTypes, cache.retrievals, repeatCache, lang)
       // format: ON
     } yield Ok(html)
@@ -119,8 +119,8 @@ class FormController(
     val envelopeF = fileUploadService.getEnvelope(cache.form.envelopeId)
     for {
       repeatCache <- repeatService.fetchSessionCache(cache.formTemplate)
-      sections    <- repeatService.getAllSections(cache.formTemplate, data, repeatCache)
-      envelope    <- envelopeF
+      sections = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
+      envelope <- envelopeF
       section = sections(sectionNumber.value)
       sectionFields = repeatService.atomicFields(section, repeatCache)
       allFields = sections.flatMap(s => repeatService.atomicFields(s, repeatCache))
@@ -210,9 +210,8 @@ class FormController(
       def updateFormData(repeatCache: Option[CacheMap]): Future[Result] = {
 
         processResponseDataFromBody(request) { (data: Map[FormComponentId, Seq[String]]) =>
-          val sectionsF: Future[List[Section]] = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
+          val sections: List[Section] = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
           val formFieldValidationResultsF: Future[Map[FormComponent, FormFieldValidationResult]] = for {
-            sections <- sectionsF
             envelope <- envelopeF
             section = sections(sectionNumber.value)
             sectionFields = repeatService.atomicFields(section, repeatCache)
@@ -230,7 +229,6 @@ class FormController(
             val keystore = repeatService.getData(repeatCache)
             for {
               formData <- formDataF
-              section  <- sectionsF
               userData = UserData(formData, keystore, InProgress)
               _           <- gformConnector.updateUserData(formId, userData)
               isFormValid <- isFormValidF
@@ -238,27 +236,25 @@ class FormController(
               if (isFormValid) nextPage
               else
                 Redirect(
-                  routes.FormController.formError(formId, cache.formTemplate._id, sectionNumber, section.size, lang))
+                  routes.FormController.formError(formId, cache.formTemplate._id, sectionNumber, sections.size, lang))
           }
 
           def processSaveAndSummary(userId: UserId, form: Form)(implicit hc: HeaderCarrier): Future[Result] = {
             val keystore = repeatService.getData(repeatCache)
             for {
               formData <- formDataF
-              section  <- sectionsF
               userData = UserData(formData, keystore, Summary)
               _           <- gformConnector.updateUserData(formId, userData)
               isFormValid <- isFormValidF
               gotoSummary = Redirect(routes.SummaryController.summaryById(formId, cache.formTemplate._id, lang))
               gotoFormError = Redirect(
-                routes.FormController.formError(formId, cache.formTemplate._id, sectionNumber, section.size, lang))
+                routes.FormController.formError(formId, cache.formTemplate._id, sectionNumber, sections.size, lang))
             } yield if (isFormValid) gotoSummary else gotoFormError
           }
 
           def processSaveAndExit(userId: UserId, form: Form, envelopeId: EnvelopeId): Future[Result] = {
             val keystore = repeatService.getData(repeatCache)
             for {
-              section  <- sectionsF
               formData <- formDataF
               userData = UserData(formData, keystore, InProgress)
 
@@ -266,7 +262,7 @@ class FormController(
                          .updateUserData(formId, userData)
                          .map(response =>
                            Ok(views.html.hardcoded.pages
-                             .save_acknowledgement(formId, cache.formTemplate, section.size, lang, frontendAppConfig)))
+                             .save_acknowledgement(formId, cache.formTemplate, sections.size, lang, frontendAppConfig)))
             } yield result
           }
 
@@ -281,9 +277,8 @@ class FormController(
 
           def processAddGroup(groupId: String): Future[Result] =
             for {
-              optCompList     <- repeatService.appendNewGroup(groupId, repeatCache)
-              dynamicSections <- sectionsF
-              repeatCache     <- repeatService.fetchSessionCache(cache.formTemplate)
+              optCompList <- repeatService.appendNewGroup(groupId, repeatCache)
+              repeatCache <- repeatService.fetchSessionCache(cache.formTemplate)
               keystore = repeatService.getData(repeatCache)
               formData <- formDataF
               userData = UserData(formData, keystore, InProgress)
@@ -291,20 +286,19 @@ class FormController(
             } yield
               Redirect(
                 routes.FormController
-                  .form(formId, cache.formTemplate._id, sectionNumber, dynamicSections.size, lang)
+                  .form(formId, cache.formTemplate._id, sectionNumber, sections.size, lang)
                   .url + anchor(optCompList))
 
           def anchor(optCompList: Option[List[List[FormComponent]]]) =
             optCompList.map(list => s"#${list.last.head.id}").getOrElse("")
 
-          def processRemoveGroup(idx: Int, groupId: String): Future[Result] =
+          def processRemoveGroup(idx: Int, groupId: String): Future[Result] = {
+            val updatedData = repeatService.removeGroup(idx, groupId, data, repeatCache).getOrElse(data)
+            val compList = repeatService.getAllRepeatingGroups(repeatCache).getEntry[RepeatingGroup](groupId)
             for {
-              dynamicSections <- sectionsF
-              updatedData = repeatService.removeGroup(idx, groupId, data, repeatCache).getOrElse(data)
-              compList = repeatService.getAllRepeatingGroups(repeatCache).getEntry[RepeatingGroup](groupId)
               envelope <- envelopeF
-              section = dynamicSections(sectionNumber.value)
-              allFields = dynamicSections.flatMap(s => repeatService.atomicFields(s, repeatCache))
+              section = sections(sectionNumber.value)
+              allFields = sections.flatMap(s => repeatService.atomicFields(s, repeatCache))
               sectionFields = repeatService.atomicFields(section, repeatCache)
               v <- validationService.validateForm(sectionFields, section, cache.form.envelopeId, cache.retrievals)(
                     updatedData)
@@ -317,19 +311,20 @@ class FormController(
             } yield
               Redirect(
                 routes.FormController
-                  .form(formId, cache.formTemplate._id, sectionNumber, dynamicSections.size, lang)
+                  .form(formId, cache.formTemplate._id, sectionNumber, sections.size, lang)
                   .url + anchor(compList.map(_.list)))
+          }
 
           val userId = UserId(cache.retrievals.userDetails.groupIdentifier)
-          val navigationF: Future[Direction] =
-            sectionsF.map(sections => new Navigator(sectionNumber, sections, data, cache.retrievals).navigate)
+          val navigation: Direction = new Navigator(sectionNumber, sections, data, cache.retrievals).navigate
 
           def redirection(call: Int => Call): Future[Result] =
-            for {
-              section <- sectionsF
-            } yield Redirect(call(section.size))
+//            for {
+//              section <- sectionsF
+//            } yield Redirect(call(section.size))
+            ???
 
-          navigationF.flatMap {
+          navigation match {
             case SaveAndContinue(sn) =>
               redirection(routes.FormController.form(formId, cache.formTemplate._id, sn, _, lang)).flatMap(x =>
                 processSaveAndContinue(userId, cache.form, x))
