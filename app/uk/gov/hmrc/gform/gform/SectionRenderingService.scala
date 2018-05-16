@@ -417,9 +417,9 @@ class SectionRenderingService(
       case Date(_, offset, dateValue) =>
         Future.successful(htmlForDate(fieldValue, offset, dateValue, index, maybeValidated, ei, repeatCache, isHidden))
       case Address(international) =>
-        Future.successful(htmlForAddress(fieldValue, international, index, maybeValidated, ei))
-      case t @ Text(_, expr) => htmlForText(fieldValue, t, expr, index, maybeValidated, ei, isHidden)
-      case TextArea          => Future.successful(htmlForTextArea(fieldValue, index, maybeValidated, ei, isHidden))
+        Future.successful(htmlForAddress(fieldValue, international, index, maybeValidated, ei, repeatCache))
+      case t @ Text(_, expr) => htmlForText(fieldValue, t, expr, index, maybeValidated, ei, repeatCache, isHidden)
+      case TextArea          => Future.successful(htmlForTextArea(fieldValue, index, maybeValidated, ei, repeatCache, isHidden))
       case Choice(choice, options, orientation, selections, optionalHelpText) =>
         htmlForChoice(
           fieldValue,
@@ -602,6 +602,7 @@ class SectionRenderingService(
     index: Int,
     validatedType: Option[ValidatedType],
     ei: ExtraInfo,
+    repeatCache: Option[CacheMap],
     isHidden: Boolean)(implicit hc: HeaderCarrier) = {
     def renderTextArea(
       fieldValue: FormComponent,
@@ -616,7 +617,7 @@ class SectionRenderingService(
       else htmlWithValues
     }
 
-    val validatedValue = buildFormFieldValidationResult(fieldValue, ei, validatedType)
+    val validatedValue = buildFormFieldValidationResult(fieldValue, ei, validatedType, repeatCache)
 
     renderTextArea(fieldValue, validatedValue, isHidden)
   }
