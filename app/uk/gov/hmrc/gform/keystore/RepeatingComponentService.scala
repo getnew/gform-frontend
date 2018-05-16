@@ -32,23 +32,44 @@ class RepeatingComponentService(
   configModule: ConfigModule
 ) {
 
-  def isRepeating(formTemplate: FormTemplate): Boolean =
-    formTemplate.sections.exists { s =>
-      isRepeatingSection(s) || hasRepeatingGroup(s.fields)
-    }
+  def isRepeating(formTemplate: FormTemplate): Boolean = {
+    val x =
+      formTemplate.sections.exists { s =>
+        isRepeatingSection(s) || hasRepeatingGroup(s.fields)
+      }
+    val xx = x
+    x
+  }
 
-  private def isRepeatingSection(section: Section): Boolean =
-    section.repeatsMax.isDefined && section.repeatsMin.isDefined
+  private def isRepeatingSection(section: Section): Boolean = {
+    val x =
+      section.repeatsMax.isDefined
+    val xx = x
+    x
+  }
 
-  private def hasRepeatingGroup(fields: Seq[FormComponent]): Boolean =
-    fields.exists(f =>
+  private def hasRepeatingGroup(fields: Seq[FormComponent]): Boolean = {
+    val y = 0
+    val yy = y
+    val x = fields.exists(f =>
       f.`type` match {
-        case grp @ Group(flds, _, _, _, _, _) =>
-          isRepeatingGroup(grp) || hasRepeatingGroup(flds)
+        case grp @ Group(flds, _, _, _, _, _) => {
+          val x =
+            isRepeatingGroup(grp) || hasRepeatingGroup(flds)
+          val xx = x
+          x
+        }
         case _ => false
     })
+    val xx = x
+    x
+  }
 
-  private def isRepeatingGroup(group: Group): Boolean = group.repeatsMax.isDefined && group.repeatsMin.isDefined
+  private def isRepeatingGroup(group: Group): Boolean = {
+    val x = group.repeatsMax.isDefined
+    val xx = x
+    x
+  }
 
   def fetchSessionCache(formTemplate: FormTemplate)(implicit hc: HeaderCarrier, ec: ExecutionContext) =
     if (isRepeating(formTemplate: FormTemplate))
