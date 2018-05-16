@@ -99,7 +99,7 @@ class SummaryController(
           case "Exit" :: Nil =>
             Ok(save_acknowledgement(formId, cache.formTemplate, totalPage, lang, frontendAppConfig)).pure[Future]
           case "Declaration" :: Nil => handleDeclaration
-          case _                    => BadRequest("Cannot determine action").pure[Future]
+          case _ => BadRequest("Cannot determine action").pure[Future]
         }
       }
     }
@@ -153,9 +153,9 @@ class SummaryController(
     val envelopeF = fileUploadService.getEnvelope(cache.form.envelopeId)
 
     for {
-      envelope    <- envelopeF
+      envelope <- envelopeF
       repeatCache <- repeatService.fetchSessionCache(cache.formTemplate)
-      (v, _)      <- validateForm(cache, envelope, cache.retrievals, repeatCache)
+      (v, _) <- validateForm(cache, envelope, cache.retrievals, repeatCache)
       result <- SummaryRenderingService.renderSummary(
                  cache.formTemplate,
                  v,

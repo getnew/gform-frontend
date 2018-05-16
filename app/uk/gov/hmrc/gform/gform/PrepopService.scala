@@ -74,48 +74,51 @@ class PrepopService(
       case None    => x
     }
 
-    expr match {
-      case AuthCtx(value)  => Future.successful(authContextPrepop.values(value, retrievals))
-      case Constant(value) => Future.successful(value)
-      case EeittCtx(eeitt) => eeittPrepop(eeitt, retrievals, formTemplate)
-      case UserCtx(_)      => Future.successful(retrievals.affinityGroupName)
-      case Add(field1, field2) =>
-        val value = for {
-          y <- prepopData(field1, formTemplate, retrievals, data, repeatCache, section)
-          z <- prepopData(field2, formTemplate, retrievals, data, repeatCache, section)
-        } yield toBigDecimal(y) + toBigDecimal(z)
-        value.map(x => round(x).toString)
-      case Subtraction(field1, field2) =>
-        val value = for {
-          y <- prepopData(field1, formTemplate, retrievals, data, repeatCache, section)
-          z <- prepopData(field2, formTemplate, retrievals, data, repeatCache, section)
-        } yield toBigDecimal(y) - toBigDecimal(z)
-        value.map(x => round(x).toString)
-      case Multiply(field1, field2) =>
-        val value = for {
-          y <- prepopData(field1, formTemplate, retrievals, data, repeatCache, section)
-          z <- prepopData(field2, formTemplate, retrievals, data, repeatCache, section)
-        } yield toBigDecimal(y) * toBigDecimal(z)
-        value.map(x => round(x).toString)
-      case Sum(FormCtx(field)) =>
-        val atomicFields = repeatingComponentService.atomicFields(section, repeatCache)
-        val cacheMap: CacheMap = repeatingComponentService.getAllRepeatingGroups(repeatCache)
-        val repeatingSections: List[List[List[FormComponent]]] =
-          atomicFields.map(fv => (fv.id, fv.`type`)).collect {
-            case (fieldId, group: Group) =>
-              cacheMap.getEntry[RepeatingGroup](fieldId.value).map(_.list).getOrElse(Nil)
-          }
-        val listOfValues = Group
-          .getGroup(Future.successful(repeatingSections), FormComponentId(field))
-          .map(z =>
-            for {
-              id <- z
-              x = data.get(id).map(_.head).getOrElse("")
-            } yield toBigDecimal(x))
-        for { vs <- listOfValues } yield round(vs.sum).toString()
-      case id: FormCtx => data.get(id.toFieldId).map(_.head).getOrElse("").pure[Future]
-      case _           => Future.successful("")
-    }
+    def prepopData(expr: Expr)(implicit hc: HeaderCarrier): Future[String] =
+      expr match {
+        case AuthCtx(value)  => Future.successful(authContextPrepop.values(value, retrievals))
+        case Constant(value) => Future.successful(value)
+        case EeittCtx(eeitt) => eeittPrepop(eeitt, retrievals, formTemplate)
+        case UserCtx(_)      => Future.successful(retrievals.affinityGroupName)
+        case Add(field1, field2) =>
+          val value = for {
+            y <- prepopData(field1)
+            z <- prepopData(field2)
+          } yield toBigDecimal(y) + toBigDecimal(z)
+          value.map(x => round(x).toString)
+        case Subtraction(field1, field2) =>
+          val value = for {
+            y <- prepopData(field1)
+            z <- prepopData(field2)
+          } yield toBigDecimal(y) - toBigDecimal(z)
+          value.map(x => round(x).toString)
+        case Multiply(field1, field2) =>
+          val value = for {
+            y <- prepopData(field1)
+            z <- prepopData(field2)
+          } yield toBigDecimal(y) * toBigDecimal(z)
+          value.map(x => round(x).toString)
+        case Sum(FormCtx(field)) =>
+          val atomicFields = repeatingComponentService.atomicFields(section, repeatCache)
+          val cacheMap: CacheMap = repeatingComponentService.getAllRepeatingGroups(repeatCache)
+          val repeatingSections: List[List[List[FormComponent]]] =
+            atomicFields.map(fv => (fv.id, fv.`type`)).collect {
+              case (fieldId, group: Group) =>
+                cacheMap.getEntry[RepeatingGroup](fieldId.value).map(_.list).getOrElse(Nil)
+            }
+          val listOfValues = Group
+            .getGroup(Future.successful(repeatingSections), FormComponentId(field))
+            .map(z =>
+              for {
+                id <- z
+                x = data.get(id).map(_.head).getOrElse("")
+              } yield toBigDecimal(x))
+          for { vs <- listOfValues } yield round(vs.sum).toString()
+        case id: FormCtx => data.get(id.toFieldId).map(_.head).getOrElse("").pure[Future]
+        case _           => Future.successful("")
+      }
+
+    prepopData(expr)
   }
 
   private def eeittPrepop(eeitt: Eeitt, retrievals: Retrievals, formTemplate: FormTemplate)(

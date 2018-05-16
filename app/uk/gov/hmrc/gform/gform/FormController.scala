@@ -117,17 +117,31 @@ class FormController(
     lang: Option[String]) = auth.async(formId) { implicit request => cache =>
     val data = FormDataHelpers.formDataMap(cache.form.formData)
     val envelopeF = fileUploadService.getEnvelope(cache.form.envelopeId)
-    for { // format: OFF
-      repeatCache       <- repeatService.fetchSessionCache(cache.formTemplate)
-      sections          <- repeatService.getAllSections(cache.formTemplate, data, repeatCache)
-      envelope          <- envelopeF
-      section           = sections(sectionNumber.value)
-      sectionFields     = repeatService.atomicFields(section, repeatCache)
-      allFields         =  sections.flatMap(s => repeatService.atomicFields(s, repeatCache))
-      v                 <- validationService.validateForm(sectionFields, section, cache.form.envelopeId, cache.retrievals)(data)
-      errors            = validationService.evaluateValidation(v, allFields, data, envelope)
-      html              <- renderer.renderSection(cache.form, sectionNumber, data, cache.formTemplate, Some(errors), envelope, cache.form.envelopeId, Some(v), sections, formMaxAttachmentSizeMB, contentTypes, cache.retrievals, repeatCache, lang)
-      // format: ON
+    for {
+      repeatCache <- repeatService.fetchSessionCache(cache.formTemplate)
+      sections    <- repeatService.getAllSections(cache.formTemplate, data, repeatCache)
+      envelope    <- envelopeF
+      section = sections(sectionNumber.value)
+      sectionFields = repeatService.atomicFields(section, repeatCache)
+      allFields = sections.flatMap(s => repeatService.atomicFields(s, repeatCache))
+      v <- validationService.validateForm(sectionFields, section, cache.form.envelopeId, cache.retrievals)(data)
+      errors = validationService.evaluateValidation(v, allFields, data, envelope)
+      html <- renderer.renderSection(
+               cache.form,
+               sectionNumber,
+               data,
+               cache.formTemplate,
+               Some(errors),
+               envelope,
+               cache.form.envelopeId,
+               Some(v),
+               sections,
+               formMaxAttachmentSizeMB,
+               contentTypes,
+               cache.retrievals,
+               repeatCache,
+               lang
+             )
     } yield Ok(html)
   }
 
@@ -189,7 +203,7 @@ class FormController(
 
   def updateFormData(formId: FormId, sectionNumber: SectionNumber, lang: Option[String]) = auth.async(formId) {
     implicit request => cache =>
-      val envelopeF: Future[Envelope] = for {
+      val envelopeF = for {
         envelope <- fileUploadService.getEnvelope(cache.form.envelopeId)
       } yield envelope
 

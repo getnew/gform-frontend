@@ -19,7 +19,6 @@ package uk.gov.hmrc.gform.gform
 import cats.data.Validated.{ Invalid, Valid }
 import org.jsoup.Jsoup
 import play.api.Logger
-import play.api.mvc.Result
 import play.api.i18n.I18nSupport
 import uk.gov.hmrc.gform.auditing.{ AuditService, loggingHelpers }
 import uk.gov.hmrc.gform.auth.AuthService
@@ -30,14 +29,12 @@ import uk.gov.hmrc.gform.controllers.AuthenticatedRequestActions
 import uk.gov.hmrc.gform.controllers.helpers.FormDataHelpers.{ formDataMap, get, processResponseDataFromBody }
 import uk.gov.hmrc.gform.fileupload.Envelope
 import uk.gov.hmrc.gform.gformbackend.GformConnector
-import uk.gov.hmrc.gform.keystore.RepeatingComponentService
 import uk.gov.hmrc.gform.sharedmodel.form._
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
 import uk.gov.hmrc.gform.summarypdf.PdfGeneratorService
 import uk.gov.hmrc.gform.validation.ValidationUtil.ValidatedType
 import uk.gov.hmrc.gform.validation.{ FormFieldValidationResult, ValidationService }
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.http.cache.client.CacheMap
 import uk.gov.hmrc.play.frontend.controller.FrontendController
 
 import scala.concurrent.Future
@@ -48,7 +45,6 @@ class DeclarationController(
   auth: AuthenticatedRequestActions,
   gformConnector: GformConnector,
   auditService: AuditService,
-  repeatService: RepeatingComponentService,
   summaryController: SummaryController,
   pdfService: PdfGeneratorService,
   renderer: SectionRenderingService,
@@ -68,7 +64,6 @@ class DeclarationController(
         case _ => Future.successful(BadRequest)
       }
   }
-
   //todo try and refactor the two addExtraDataToHTML into one method
   private def addExtraDataToHTML(
     html: String,

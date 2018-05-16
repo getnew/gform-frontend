@@ -163,34 +163,39 @@ class RepeatingComponentService(
     expr: Expr,
     formTemplate: FormTemplate,
     data: Map[FormComponentId, Seq[String]],
-    sessionCacheMap: Option[CacheMap])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Int] =
-    expr match {
-      case Add(expr1, expr2) =>
-        for {
-          first  <- evaluateExpression(expr1, formTemplate, data, sessionCacheMap)
-          second <- evaluateExpression(expr2, formTemplate, data, sessionCacheMap)
-        } yield first + second
-      case Multiply(expr1, expr2) =>
-        for {
-          first  <- evaluateExpression(expr1, formTemplate, data, sessionCacheMap)
-          second <- evaluateExpression(expr2, formTemplate, data, sessionCacheMap)
-        } yield first * second
-      case Subtraction(expr1, expr2) =>
-        for {
-          first  <- evaluateExpression(expr1, formTemplate, data, sessionCacheMap)
-          second <- evaluateExpression(expr2, formTemplate, data, sessionCacheMap)
-        } yield first - second
-      case Sum(FormCtx(expr1))   => sumFunctionality(expr1, formTemplate, data, sessionCacheMap)
-      case formExpr @ FormCtx(_) => Future.successful(getFormFieldIntValue(TextExpression(formExpr), data))
-      case Constant(value) =>
-        Try(value.toInt) match {
-          case Success(intValue) => Future.successful(intValue)
-          case _                 => Future.successful(0)
-        }
-      //      case AuthCtx(value: AuthInfo) =>
-      //      case EeittCtx(value: Eeitt) =>
-      case _ => Future.successful(0)
-    }
+    sessionCacheMap: Option[CacheMap])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Int] = {
+
+    def evaluateExpression(expr: Expr): Future[Int] =
+      expr match {
+        case Add(expr1, expr2) =>
+          for {
+            first <- evaluateExpression(expr1)
+            second <- evaluateExpression(expr2)
+          } yield first + second
+        case Multiply(expr1, expr2) =>
+          for {
+            first <- evaluateExpression(expr1)
+            second <- evaluateExpression(expr2)
+          } yield first * second
+        case Subtraction(expr1, expr2) =>
+          for {
+            first <- evaluateExpression(expr1)
+            second <- evaluateExpression(expr2)
+          } yield first - second
+        case Sum(FormCtx(expr1)) => sumFunctionality(expr1, formTemplate, data, sessionCacheMap)
+        case formExpr@FormCtx(_) => Future.successful(getFormFieldIntValue(TextExpression(formExpr), data))
+        case Constant(value) =>
+          Try(value.toInt) match {
+            case Success(intValue) => Future.successful(intValue)
+            case _ => Future.successful(0)
+          }
+        //      case AuthCtx(value: AuthInfo) =>
+        //      case EeittCtx(value: Eeitt) =>
+        case _ => Future.successful(0)
+      }
+
+    evaluateExpression(expr)
+  }
 
   private def sumFunctionality(
     expr1: String,
@@ -330,9 +335,7 @@ class RepeatingComponentService(
     } yield newData
   }
 
-  def getData(sessionCacheMap: Option[CacheMap])(
-    implicit hc: HeaderCarrier,
-    ec: ExecutionContext): Option[RepeatingGroupStructure] =
+  def getData(sessionCacheMap: Option[CacheMap]): Option[RepeatingGroupStructure] =
     sessionCacheMap.fold[Option[RepeatingGroupStructure]](None)(x => Some(RepeatingGroupStructure(x.data)))
 
   def loadData(data: Option[RepeatingGroupStructure])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] =

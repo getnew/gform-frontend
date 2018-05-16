@@ -25,7 +25,6 @@ import uk.gov.hmrc.gform.controllers.AuthenticatedRequestActions
 import uk.gov.hmrc.gform.controllers.helpers.FormDataHelpers.{ get, processResponseDataFromBody }
 import uk.gov.hmrc.gform.fileupload.Envelope
 import uk.gov.hmrc.gform.gformbackend.GformConnector
-import uk.gov.hmrc.gform.keystore.RepeatingComponentService
 import uk.gov.hmrc.gform.sharedmodel.form.EnvelopeId
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
 import uk.gov.hmrc.gform.validation.{ FormFieldValidationResult, ValidationService }
@@ -34,7 +33,6 @@ import uk.gov.hmrc.play.frontend.controller.FrontendController
 
 import scala.concurrent.Future
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.http.cache.client.CacheMap
 
 class EnrolmentController(
   i18nSupport: I18nSupport,
@@ -43,7 +41,6 @@ class EnrolmentController(
   validationService: ValidationService,
   gformConnector: GformConnector,
   enrolmentService: EnrolmentService,
-  repeatService: RepeatingComponentService,
   appConfig: AppConfig
 ) extends FrontendController {
 
