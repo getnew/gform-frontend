@@ -120,7 +120,7 @@ class PrepopService(
           for { vs <- listOfValues } yield round(vs.sum).toString()
         case id: FormCtx =>
           data.get(id.toFieldId).map(_.head).getOrElse("").pure[Future]
-        case _  =>
+        case _ =>
           Future.successful("")
       }
 

@@ -70,7 +70,8 @@ class RepeatingComponentService(
       }
     }.flatten
 
-  def getAllRepeatingGroups(sessionCacheMap: Option[CacheMap]): CacheMap = sessionCacheMap.getOrElse(CacheMap("Empty", Map.empty))
+  def getAllRepeatingGroups(sessionCacheMap: Option[CacheMap]): CacheMap =
+    sessionCacheMap.getOrElse(CacheMap("Empty", Map.empty))
 
   private def generateDynamicSections(
     section: Section,

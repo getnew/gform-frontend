@@ -118,15 +118,15 @@ class FormController(
     val data = FormDataHelpers.formDataMap(cache.form.formData)
     val envelopeF = fileUploadService.getEnvelope(cache.form.envelopeId)
     for {
-      repeatCache   <- repeatService.fetchSessionCache(cache.formTemplate)
-      sections      = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
-      envelope      <- envelopeF
-      section       = sections(sectionNumber.value)
+      repeatCache <- repeatService.fetchSessionCache(cache.formTemplate)
+      sections = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
+      envelope <- envelopeF
+      section = sections(sectionNumber.value)
       sectionFields = repeatService.atomicFields(section, repeatCache)
-      allFields     = sections.flatMap(s => repeatService.atomicFields(s, repeatCache))
-      v             <- validationService.validateForm(sectionFields, section, cache.form.envelopeId, cache.retrievals)(data)
-      errors        = validationService.evaluateValidation(v, allFields, data, envelope)
-      html          <- renderer.renderSection(
+      allFields = sections.flatMap(s => repeatService.atomicFields(s, repeatCache))
+      v <- validationService.validateForm(sectionFields, section, cache.form.envelopeId, cache.retrievals)(data)
+      errors = validationService.evaluateValidation(v, allFields, data, envelope)
+      html <- renderer.renderSection(
                cache.form,
                sectionNumber,
                data,
@@ -212,12 +212,12 @@ class FormController(
         processResponseDataFromBody(request) { (data: Map[FormComponentId, Seq[String]]) =>
           val sections = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
           val formFieldValidationResultsF: Future[Map[FormComponent, FormFieldValidationResult]] = for {
-            envelope      <- envelopeF
-            section       = sections(sectionNumber.value)
+            envelope <- envelopeF
+            section = sections(sectionNumber.value)
             sectionFields = repeatService.atomicFields(section, repeatCache)
-            allFields     = sections.flatMap(s => repeatService.atomicFields(s, repeatCache))
-            v             <- validationService.validateForm(sectionFields, section, cache.form.envelopeId, cache.retrievals)(data)
-            errors        = validationService.evaluateValidation(v, allFields, data, envelope)
+            allFields = sections.flatMap(s => repeatService.atomicFields(s, repeatCache))
+            v <- validationService.validateForm(sectionFields, section, cache.form.envelopeId, cache.retrievals)(data)
+            errors = validationService.evaluateValidation(v, allFields, data, envelope)
           } yield errors.toMap
 
           val isFormValidF: Future[Boolean] = formFieldValidationResultsF.map(ValidationUtil.isFormValid)
@@ -228,8 +228,8 @@ class FormController(
             implicit hc: HeaderCarrier): Future[Result] = {
             val keystore = repeatService.getData(repeatCache)
             for {
-              formData    <- formDataF
-              userData    = UserData(formData, keystore, InProgress)
+              formData <- formDataF
+              userData = UserData(formData, keystore, InProgress)
               _           <- gformConnector.updateUserData(formId, userData)
               isFormValid <- isFormValidF
             } yield
@@ -242,11 +242,11 @@ class FormController(
           def processSaveAndSummary(userId: UserId, form: Form)(implicit hc: HeaderCarrier): Future[Result] = {
             val keystore = repeatService.getData(repeatCache)
             for {
-              formData      <- formDataF
-              userData      = UserData(formData, keystore, Summary)
-              _             <- gformConnector.updateUserData(formId, userData)
-              isFormValid   <- isFormValidF
-              gotoSummary   = Redirect(routes.SummaryController.summaryById(formId, cache.formTemplate._id, lang))
+              formData <- formDataF
+              userData = UserData(formData, keystore, Summary)
+              _           <- gformConnector.updateUserData(formId, userData)
+              isFormValid <- isFormValidF
+              gotoSummary = Redirect(routes.SummaryController.summaryById(formId, cache.formTemplate._id, lang))
               gotoFormError = Redirect(
                 routes.FormController.formError(formId, cache.formTemplate._id, sectionNumber, sections.size, lang))
             } yield if (isFormValid) gotoSummary else gotoFormError
@@ -258,11 +258,11 @@ class FormController(
               formData <- formDataF
               userData = UserData(formData, keystore, InProgress)
 
-              result   <- gformConnector
-                           .updateUserData(formId, userData)
-                           .map(response =>
-                             Ok(views.html.hardcoded.pages
-                               .save_acknowledgement(formId, cache.formTemplate, sections.size, lang, frontendAppConfig)))
+              result <- gformConnector
+                         .updateUserData(formId, userData)
+                         .map(response =>
+                           Ok(views.html.hardcoded.pages
+                             .save_acknowledgement(formId, cache.formTemplate, sections.size, lang, frontendAppConfig)))
             } yield result
           }
 
@@ -271,7 +271,7 @@ class FormController(
             for {
               formData <- formDataF
               userData = UserData(formData, keystore, InProgress)
-              result   <- gformConnector.updateUserData(formId, userData).flatMap(response => continue)
+              result <- gformConnector.updateUserData(formId, userData).flatMap(response => continue)
             } yield result
           }
 
@@ -279,10 +279,10 @@ class FormController(
             for {
               optCompList <- repeatService.appendNewGroup(groupId, repeatCache)
               repeatCache <- repeatService.fetchSessionCache(cache.formTemplate)
-              keystore    = repeatService.getData(repeatCache)
-              formData    <- formDataF
-              userData    = UserData(formData, keystore, InProgress)
-              _           <- gformConnector.updateUserData(formId, userData)
+              keystore = repeatService.getData(repeatCache)
+              formData <- formDataF
+              userData = UserData(formData, keystore, InProgress)
+              _ <- gformConnector.updateUserData(formId, userData)
             } yield
               Redirect(
                 routes.FormController
@@ -296,18 +296,18 @@ class FormController(
             val updatedData = repeatService.removeGroup(idx, groupId, data, repeatCache).getOrElse(data)
             val compList = repeatService.getAllRepeatingGroups(repeatCache).getEntry[RepeatingGroup](groupId)
             for {
-              envelope      <- envelopeF
-              section       = sections(sectionNumber.value)
-              allFields     = sections.flatMap(s => repeatService.atomicFields(s, repeatCache))
+              envelope <- envelopeF
+              section = sections(sectionNumber.value)
+              allFields = sections.flatMap(s => repeatService.atomicFields(s, repeatCache))
               sectionFields = repeatService.atomicFields(section, repeatCache)
-              v             <- validationService.validateForm(sectionFields, section, cache.form.envelopeId, cache.retrievals)(
-                                                       updatedData)
-              errors        = validationService.evaluateValidation(v, allFields, updatedData, envelope).toMap
-              formData      = FormData(errors.values.toSeq.flatMap(_.toFormField))
-              repeatCache   <- repeatService.fetchSessionCache(cache.formTemplate)
-              keystore      = repeatService.getData(repeatCache)
-              userData      = UserData(formData, keystore, InProgress)
-              _             <- gformConnector.updateUserData(formId, userData)
+              v <- validationService.validateForm(sectionFields, section, cache.form.envelopeId, cache.retrievals)(
+                    updatedData)
+              errors = validationService.evaluateValidation(v, allFields, updatedData, envelope).toMap
+              formData = FormData(errors.values.toSeq.flatMap(_.toFormField))
+              repeatCache <- repeatService.fetchSessionCache(cache.formTemplate)
+              keystore = repeatService.getData(repeatCache)
+              userData = UserData(formData, keystore, InProgress)
+              _ <- gformConnector.updateUserData(formId, userData)
             } yield
               Redirect(
                 routes.FormController

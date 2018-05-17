@@ -98,8 +98,9 @@ object Javascript {
             x <- ids(field1)
             y <- ids(field2)
           } yield x ::: y
-        case Sum(FormCtx(id)) => Group.groupContents(groupList, FormComponentId(id)).map(fieldId => fieldId.map(_.value))
-        case otherwise        => Future.successful(List(""))
+        case Sum(FormCtx(id)) =>
+          Group.groupContents(groupList, FormComponentId(id)).map(fieldId => fieldId.map(_.value))
+        case otherwise => Future.successful(List(""))
       }
 
     def consts(expr: Expr): List[String] =
