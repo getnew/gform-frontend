@@ -386,11 +386,17 @@ class SectionRenderingService(
       }
 
     val cacheMap: CacheMap = repeatService.getAllRepeatingGroups(repeatCache)
+    val tuples: List[(FormComponentId, ComponentType)] = fieldList.map(fv => (fv.id, fv.`type`))
     val repeatingSections: List[List[List[FormComponent]]] =
-      fieldList.map(fv => (fv.id, fv.`type`)).collect {
+      tuples.collect {
         case (fieldId, group: Group) =>
-          cacheMap.getEntry[RepeatingGroup](fieldId.value).map(_.list).getOrElse(Nil)
+          val x = 0
+          val xx = x
+          val y = cacheMap.getEntry[RepeatingGroup](fieldId.value).map(_.list).getOrElse(Nil)
+          y
       }
+    val x = 0
+    val xx = x
     fieldJavascript(atomicFields, Future.successful(repeatingSections)).flatMap { x =>
       Future
         .sequence(groups.map { case (fieldId, group) => Future.successful(collapsingGroupJavascript(fieldId, group)) })
