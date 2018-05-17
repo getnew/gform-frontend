@@ -31,7 +31,6 @@ import uk.gov.hmrc.gform.controllers.{ AuthCacheWithForm, AuthenticatedRequestAc
 import uk.gov.hmrc.gform.fileupload.{ Envelope, FileUploadService }
 import uk.gov.hmrc.gform.gformbackend.GformConnector
 import uk.gov.hmrc.gform.keystore.RepeatingComponentService
-import uk.gov.hmrc.gform.sharedmodel
 import uk.gov.hmrc.gform.sharedmodel.form._
 import uk.gov.hmrc.gform.sharedmodel.formtemplate._
 import uk.gov.hmrc.gform.summary.SummaryRenderingService
@@ -98,8 +97,10 @@ class SummaryController(
         get(data, FormComponentId("save")) match {
           case "Exit" :: Nil =>
             Ok(save_acknowledgement(formId, cache.formTemplate, totalPage, lang, frontendAppConfig)).pure[Future]
-          case "Declaration" :: Nil => handleDeclaration
-          case _                    => BadRequest("Cannot determine action").pure[Future]
+          case "Declaration" :: Nil =>
+            handleDeclaration
+          case _ =>
+            BadRequest("Cannot determine action").pure[Future]
         }
       }
     }
@@ -111,7 +112,7 @@ class SummaryController(
           for {
             summaryHml <- getSummaryHTML(formId, cache, lang)
             htmlForPDF = pdfService.sanitiseHtmlForPDF(summaryHml)
-            pdfStream <- pdfService.generatePDF(htmlForPDF)
+            pdfStream  <- pdfService.generatePDF(htmlForPDF)
           } yield
             Result(
               header = ResponseHeader(200, Map.empty),
@@ -129,20 +130,20 @@ class SummaryController(
     implicit hc: HeaderCarrier): Future[(ValidatedType, Map[FormComponent, FormFieldValidationResult])] = {
     val data = FormDataHelpers.formDataMap(cache.form.formData)
     for {
-      repeatCache <- repeatService.fetchSessionCache(cache.formTemplate)
-      sections = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
+      repeatCache      <- repeatService.fetchSessionCache(cache.formTemplate)
+      sections         = repeatService.getAllSections(cache.formTemplate, data, repeatCache)
       filteredSections = sections.filter(x =>
         BooleanExpr.isTrue(x.includeIf.map(_.expr).getOrElse(IsTrue), data, retrievals))
-      allFields = filteredSections.flatMap(s => repeatService.atomicFields(s, repeatCache))
-      v1 <- filteredSections
-             .map(x => validationService.validateForm(allFields, x, cache.form.envelopeId, retrievals)(data))
-             .sequenceU
-             .map(Monoid[ValidatedType].combineAll)
-      v = Monoid.combine(
-        v1,
-        ValidationUtil.validateFileUploadHasScannedFiles(allFields, envelope)
+      allFields        = filteredSections.flatMap(s => repeatService.atomicFields(s, repeatCache))
+      v1               <- filteredSections
+                          .map(x => validationService.validateForm(allFields, x, cache.form.envelopeId, retrievals)(data))
+                          .sequenceU
+                          .map(Monoid[ValidatedType].combineAll)
+      v                = Monoid.combine(
+                         v1,
+                         ValidationUtil.validateFileUploadHasScannedFiles(allFields, envelope)
       )
-      errors = validationService.evaluateValidation(v, allFields, data, envelope).toMap
+      errors           = validationService.evaluateValidation(v, allFields, data, envelope).toMap
     } yield (v, errors)
   }
 

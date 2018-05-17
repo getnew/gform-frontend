@@ -76,10 +76,14 @@ class PrepopService(
 
     def prepopData(expr: Expr)(implicit hc: HeaderCarrier): Future[String] =
       expr match {
-        case AuthCtx(value)  => Future.successful(authContextPrepop.values(value, retrievals))
-        case Constant(value) => Future.successful(value)
-        case EeittCtx(eeitt) => eeittPrepop(eeitt, retrievals, formTemplate)
-        case UserCtx(_)      => Future.successful(retrievals.affinityGroupName)
+        case AuthCtx(value) =>
+          Future.successful(authContextPrepop.values(value, retrievals))
+        case Constant(value) =>
+          Future.successful(value)
+        case EeittCtx(eeitt) =>
+          eeittPrepop(eeitt, retrievals, formTemplate)
+        case UserCtx(_) =>
+          Future.successful(retrievals.affinityGroupName)
         case Add(field1, field2) =>
           val value = for {
             y <- prepopData(field1)
@@ -107,15 +111,17 @@ class PrepopService(
                 cacheMap.getEntry[RepeatingGroup](fieldId.value).map(_.list).getOrElse(Nil)
             }
           val listOfValues = Group
-            .getGroup(Future.successful(repeatingSections), FormComponentId(field))
+            .groupContents(Future.successful(repeatingSections), FormComponentId(field))
             .map(z =>
               for {
                 id <- z
                 x = data.get(id).map(_.head).getOrElse("")
               } yield toBigDecimal(x))
           for { vs <- listOfValues } yield round(vs.sum).toString()
-        case id: FormCtx => data.get(id.toFieldId).map(_.head).getOrElse("").pure[Future]
-        case _           => Future.successful("")
+        case id: FormCtx =>
+          data.get(id.toFieldId).map(_.head).getOrElse("").pure[Future]
+        case _  =>
+          Future.successful("")
       }
 
     prepopData(expr)

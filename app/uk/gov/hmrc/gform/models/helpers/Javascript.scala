@@ -98,7 +98,7 @@ object Javascript {
             x <- ids(field1)
             y <- ids(field2)
           } yield x ::: y
-        case Sum(FormCtx(id)) => Group.getGroup(groupList, FormComponentId(id)).map(fieldId => fieldId.map(_.value))
+        case Sum(FormCtx(id)) => Group.groupContents(groupList, FormComponentId(id)).map(fieldId => fieldId.map(_.value))
         case otherwise        => Future.successful(List(""))
       }
 
@@ -129,7 +129,7 @@ object Javascript {
     // TODO: the use of reduce() is simplistic, we need to generate true javascript expressions based on the parsed gform expression
     expr match {
       case Sum(FormCtx(id)) =>
-        val eventListeners = Group.getGroup(groupList, FormComponentId(id)).map { listFieldId =>
+        val eventListeners = Group.groupContents(groupList, FormComponentId(id)).map { listFieldId =>
           listFieldId
             .map(groupFieldId => s"""document.getElementById("${groupFieldId.value}").addEventListener("change",sum$id);
               document.getElementById("${groupFieldId.value}").addEventListener("keyup",sum$id);
@@ -138,7 +138,7 @@ object Javascript {
             .mkString("\n")
         }
 
-        val groups: Future[String] = Group.getGroup(groupList, FormComponentId(id)).map { listFieldId =>
+        val groups: Future[String] = Group.groupContents(groupList, FormComponentId(id)).map { listFieldId =>
           listFieldId.map(_.value).map(values).mkString(s",")
         }
         for {

@@ -110,19 +110,19 @@ case class Group(
 
 object Group {
 
-  def getGroup(list: Future[List[List[List[FormComponent]]]], fieldId: FormComponentId)(
+  def groupContents(list: Future[List[List[List[FormComponent]]]], fieldId: FormComponentId)(
     implicit ex: ExecutionContext): Future[List[FormComponentId]] =
-    list.map(l => getGroup(l, fieldId))
+    list.map(l => groupContents(l, fieldId))
 
-  def getGroup(list: List[List[List[FormComponent]]], fieldId: FormComponentId): List[FormComponentId] = {
+  def groupContents(list: List[List[List[FormComponent]]], fieldId: FormComponentId): List[FormComponentId] = {
     val x: List[List[FormComponent]] = list
       .find(x => x.flatMap(y => y.map(_.id.value.contains(fieldId.value))).contains(true))
       .fold(List.empty[List[FormComponent]])(z => z)
 
-    x.flatMap(matchList => getGroupLength(matchList.size, fieldId))
+    x.flatMap(matchList => groupBreadth(matchList.size, fieldId))
   }
 
-  private def getGroupLength(max: Int, id: FormComponentId): List[FormComponentId] = {
+  private def groupBreadth(max: Int, id: FormComponentId): List[FormComponentId] = {
     val suffix = List.range(0, max)
     suffix.map(x =>
       if (x == 0) {

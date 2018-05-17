@@ -70,8 +70,7 @@ class RepeatingComponentService(
       }
     }.flatten
 
-  def getAllRepeatingGroups(sessionCacheMap: Option[CacheMap]): CacheMap =
-    sessionCacheMap.getOrElse(CacheMap("Empty", Map.empty))
+  def getAllRepeatingGroups(sessionCacheMap: Option[CacheMap]): CacheMap = sessionCacheMap.getOrElse(CacheMap("Empty", Map.empty))
 
   private def generateDynamicSections(
     section: Section,
@@ -195,7 +194,7 @@ class RepeatingComponentService(
           cacheMap.getEntry[RepeatingGroup](fieldId.value).map(_.list).getOrElse(Nil)
       }
     Group
-      .getGroup(repeatingSections, FormComponentId(expr1))
+      .groupContents(repeatingSections, FormComponentId(expr1))
       .map(dataGetter)
       .sum
   }

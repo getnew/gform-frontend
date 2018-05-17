@@ -418,8 +418,10 @@ class SectionRenderingService(
         Future.successful(htmlForDate(fieldValue, offset, dateValue, index, maybeValidated, ei, repeatCache, isHidden))
       case Address(international) =>
         Future.successful(htmlForAddress(fieldValue, international, index, maybeValidated, ei, repeatCache))
-      case t @ Text(_, expr) => htmlForText(fieldValue, t, expr, index, maybeValidated, ei, repeatCache, isHidden)
-      case TextArea          => Future.successful(htmlForTextArea(fieldValue, index, maybeValidated, ei, repeatCache, isHidden))
+      case t @ Text(_, expr) =>
+        htmlForText(fieldValue, t, expr, index, maybeValidated, ei, repeatCache, isHidden)
+      case TextArea =>
+        Future.successful(htmlForTextArea(fieldValue, index, maybeValidated, ei, repeatCache, isHidden))
       case Choice(choice, options, orientation, selections, optionalHelpText) =>
         htmlForChoice(
           fieldValue,
