@@ -119,7 +119,9 @@ object Group {
       .find(x => x.flatMap(y => y.map(_.id.value.contains(fieldId.value))).contains(true))
       .fold(List.empty[List[FormComponent]])(z => z)
 
-    x.flatMap(matchList => groupBreadth(matchList.size, fieldId))
+    val y = groupBreadth(x.size, fieldId)
+    val yy = y
+    y
   }
 
   private def groupBreadth(max: Int, id: FormComponentId): List[FormComponentId] = {

@@ -99,7 +99,11 @@ object Javascript {
             y <- ids(field2)
           } yield x ::: y
         case Sum(FormCtx(id)) =>
-          Group.groupContents(groupList, FormComponentId(id)).map(fieldId => fieldId.map(_.value))
+          val x = 0
+          val xx = x
+          val y = Group.groupContents(groupList, FormComponentId(id)).map(fieldId => fieldId.map(_.value))
+          val yy = y
+          y
         case otherwise => Future.successful(List(""))
       }
 
